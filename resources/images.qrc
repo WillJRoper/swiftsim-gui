@@ -1,0 +1,5 @@
+<RCC>
+  <qresource prefix="/images">
+    <file>images/swift-logo-white.png</file>
+  </qresource>
+</RCC>
