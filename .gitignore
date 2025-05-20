@@ -10,3 +10,9 @@ compile_commands.json
 CTestTestfile.cmake
 _deps
 CMakeUserPresets.json
+
+# Ignore the build directory
+build/**
+
+# Ignore the executable  
+swift_gui
