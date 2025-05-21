@@ -1,0 +1,14 @@
+# Host: pa-245-247.byodstaff.susx.ac.uk
+# Branch: master
+# Revision: v2025.04-4-g3224b1a6
+# Compiler: LLVM/Clang, Version: 17.0.0 
+# Number of threads: 8
+# Number of MPI ranks: 1
+# Hydrodynamic scheme: SPHENIX (Borrow+ 2020)
+# Hydrodynamic kernel: Wendland C2
+# No. of neighbours: 57.27 +/- 0.0172
+# Eta: 1.234800
+# Config: '--disable-mpi --disable-compiler-warnings --disable-doxygen-doc --disable-hand-vec --with-subgrid=EAGLE-XL --with-hydro=sphenix --with-kernel=wendland-C2 --with-fftw=/opt/homebrew/Cellar/fftw/3.3.10_2/ --with-gsl=/opt/homebrew/Cellar/gsl/2.8/'
+# CFLAGS: '-I/opt/homebrew/opt/libomp/include -flto -O3 -fomit-frame-pointer -fstrict-aliasing -ffast-math -funroll-loops -pthread'
+# Step Properties: Rebuild=1, Redistribute=2, Repartition=4, Statistics=8, Snapshot=16, Restarts=32 STF=64, FOF=128, mesh=256
+#   Step           Time Scale-factor     Redshift      Time-step Time-bins      Updates    g-Updates    s-Updates Sink-Updates    b-Updates  Wall-clock time [ms]  Props    Dead time [ms]
