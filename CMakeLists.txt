@@ -17,6 +17,15 @@ set(SOURCES
     src/main.cpp
     src/SimulationController.cpp
 
+    # Main window implementation 
+    src/MainView.cpp
+
+    # Command line parser 
+    src/CommandLineParser.cpp
+
+    # Qt class implementations 
+    src/ScaledPixmapLabel.cpp
+
     # Tab widget implementations
     src/HomeTabWidget.cpp
     src/LogTabWidget.cpp
@@ -30,6 +39,12 @@ set(HEADERS
     # Main window header 
     src/MainView.h
 
+    # Command line parser header 
+    src/CommandLineParser.h
+
+    # Qt class headers 
+    src/ScaledPixmapLabel.h
+
     # Tab widget headers
     src/HomeTabWidget.h
     src/LogTabWidget.h
@@ -39,6 +54,8 @@ set(HEADERS
 
 # 4. Qt resource file for your logo
 qt6_add_resources(IMAGE_RES resources/images.qrc)
+qt6_add_resources(STYLE_QRC resources/styles.qrc)
+
 
 # 5. Define the executable
 add_executable(${PROJECT_NAME}
@@ -46,6 +63,8 @@ add_executable(${PROJECT_NAME}
     ${HEADERS}
     ${IMAGE_RES}
 )
+
+target_sources(${PROJECT_NAME} PRIVATE ${STYLE_QRC})
 
 # 6. Link against Qt6::Widgets (and Core/Gui)
 target_link_libraries(${PROJECT_NAME}
