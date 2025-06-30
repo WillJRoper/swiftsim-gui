@@ -3,6 +3,7 @@
 #include <QFile>
 #include <QFontMetrics>
 #include <QPlainTextEdit>
+#include <QRegularExpression>
 #include <QResizeEvent>
 #include <QScrollBar>
 #include <QTextStream>
@@ -42,36 +43,47 @@ void LogTabWidget::resizeEvent(QResizeEvent *event) {
   updateLogView();
 }
 
+double LogTabWidget::parseTimeFromLine(const QString &line) {
+  // split on whitespace
+  const auto parts = line.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+  // if cosmology on, time is 5th (index 4), else 3rd (index 2)
+  int idx = 1;
+  bool ok = false;
+  double t = parts.value(idx).toDouble(&ok);
+  return ok ? t : 0.0;
+}
+
 void LogTabWidget::updateLogView() {
-  // Determine how many lines fit
-  QFontMetrics fm(m_font);
-  int lineHeight = fm.lineSpacing();
-  if (lineHeight <= 0)
-    return;
-
-  int rows = height() / lineHeight;
-  if (rows < 1)
-    rows = 1;
-
-  // Read all lines (could optimize for very large files)
+  // 1) Open and read the whole file
   QFile file(m_filePath);
   if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
     m_textEdit->setPlainText(tr("Failed to open %1").arg(m_filePath));
+    emit currentTimeChanged(0.0);
     return;
   }
-  QTextStream in(&file);
-  QStringList allLines;
-  while (!in.atEnd()) {
-    allLines << in.readLine();
-  }
+  QString content = QTextStream(&file).readAll();
   file.close();
 
-  // Take only the last 'rows' lines
-  int start = qMax(0, allLines.size() - rows);
-  QStringList tail = allLines.mid(start, rows);
+  // 2) Decide if we should stay at bottom after reloading
+  QScrollBar *sb = m_textEdit->verticalScrollBar();
+  bool wasAtBottom = (sb->value() == sb->maximum());
 
-  m_textEdit->setPlainText(tail.join('\n'));
-  // Scroll to bottom
-  m_textEdit->verticalScrollBar()->setValue(
-      m_textEdit->verticalScrollBar()->maximum());
+  // 3) Replace the text
+  m_textEdit->setPlainText(content);
+
+  // 4) If we were following the tail, scroll to bottom again
+  if (wasAtBottom) {
+    sb->setValue(sb->maximum());
+  }
+
+  // 5) Parse the last non-empty line for current time
+  // Split on any newline, skip empty
+  const QStringList lines =
+      content.split(QRegularExpression("[\r\n]+"), Qt::SkipEmptyParts);
+  if (!lines.isEmpty()) {
+    double t = parseTimeFromLine(lines.last());
+    emit currentTimeChanged(t);
+  } else {
+    emit currentTimeChanged(0.0);
+  }
 }

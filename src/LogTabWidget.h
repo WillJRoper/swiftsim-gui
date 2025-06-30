@@ -22,8 +22,13 @@ public:
 protected:
   void resizeEvent(QResizeEvent *event) override;
 
+signals:
+  void currentTimeChanged(double t);
+
 private:
   QPlainTextEdit *m_textEdit;
   QString m_filePath;
   QFont m_font;
+
+  double parseTimeFromLine(const QString &line);
 };

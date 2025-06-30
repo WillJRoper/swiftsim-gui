@@ -2,4 +2,7 @@
   <qresource prefix="/">
     <file>images/swift-logo-white.png</file>
   </qresource>
+  <qresource prefix="/">
+    <file>images/cluster_bkg.png</file>
+  </qresource>
 </RCC>

@@ -6,6 +6,8 @@
 #include <QString>
 #include <QStringList>
 
+class RuntimeOptionsDialog;
+
 class SimulationController : public QObject {
   Q_OBJECT
   Q_PROPERTY(QString logText READ logText NOTIFY logTextChanged)
@@ -13,6 +15,8 @@ class SimulationController : public QObject {
                  visualsChanged)
   Q_PROPERTY(QString simulationDirectory READ simulationDirectory NOTIFY
                  simulationDirectoryChanged)
+  Q_PROPERTY(double startTime READ startTime NOTIFY progressChanged)
+  Q_PROPERTY(double endTime READ endTime NOTIFY progressChanged)
 
 public:
   explicit SimulationController(
@@ -27,13 +31,20 @@ public:
   QStringList visualizationFiles() const;
   QString simulationDirectory() const;
   QString swiftDirectory() const;
+  double startTime() const;
+  double endTime() const;
+
+  void readTimeIntegrationParams();
+
+  // Runtime option
+  RuntimeOptionsDialog *m_runtimeOpts = nullptr;
 
 public slots:
   void newSimulation();
   void openSimulation();
   void configure();
   void compile();
-  void dryRun();
+  void runDryRun();
   void run();
 
 signals:
@@ -42,6 +53,7 @@ signals:
   void simulationDirectoryChanged(QString dir);
   void newLogLinesWritten();
   void runStarted();
+  void progressChanged(int percent);
 
 private slots:
   void onProcessReadyRead();
@@ -55,4 +67,11 @@ private:
 
   QProcess m_process;
   QFile m_logFile;
+
+  // Progress tracking members
+  double m_tStart = 0.0;
+  double m_aStart = 0.0;
+  double m_tEnd = 1.0;
+  double m_aEnd = 1.0;
+  double m_tCurrent = 0.0;
 };
