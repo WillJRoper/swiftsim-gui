@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.16)
 project(swift_gui VERSION 0.1 LANGUAGES CXX)
 
 # ─── Suppress CMake developer warnings ───────────────
-# (hides “This warning is for project developers. Use -Wno-dev to suppress it.”)
 set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS 1 CACHE BOOL "" FORCE)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -13,7 +12,6 @@ set(CMAKE_AUTOUIC ON)
 include(FetchContent)
 
 # ─── yaml-cpp options ──────────────────────────────────
-# Turn off building of tests, tools, and sandbox to eliminate those CMakeLists warnings
 set(YAML_CPP_BUILD_TESTS      OFF CACHE BOOL "" FORCE)
 set(YAML_CPP_BUILD_TOOLS      OFF CACHE BOOL "" FORCE)
 set(YAML_CPP_BUILD_CONVERTORS OFF CACHE BOOL "" FORCE)
@@ -33,8 +31,8 @@ if (NOT yaml-cpp_FOUND)
   FetchContent_MakeAvailable(yaml-cpp)
 endif()
 
-# 3) Qt
-find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
+# 3) Qt5
+find_package(Qt5 REQUIRED COMPONENTS Widgets Core Gui)
 
 # 4) Include dirs
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -65,9 +63,9 @@ set(HEADERS
     src/RuntimeOptions.h
 )
 
-# 6) QRCs
-qt6_add_resources(IMAGE_RES resources/images.qrc)
-qt6_add_resources(STYLE_QRC resources/styles.qrc)
+# 6) QRCs (Qt5 style)
+qt5_add_resources(IMAGE_RES resources/images.qrc)
+qt5_add_resources(STYLE_QRC resources/styles.qrc)
 
 # 7) Executable
 add_executable(${PROJECT_NAME}
@@ -80,9 +78,9 @@ target_sources(${PROJECT_NAME} PRIVATE ${STYLE_QRC})
 # 8) Link
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
-      Qt6::Widgets
-      Qt6::Core
-      Qt6::Gui
+      Qt5::Widgets
+      Qt5::Core
+      Qt5::Gui
       yaml-cpp
 )
 
