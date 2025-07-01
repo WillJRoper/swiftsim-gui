@@ -30,6 +30,11 @@ int main(int argc, char **argv) {
 
   qDebug() << "Simulation directory:" << simDir;
   qDebug() << "Swift directory:" << swiftDir;
+  qDebug() << "Images path:" << imagesPath;
+  qDebug() << "Log file path:" << logFilePath;
+  qDebug() << "Parameters file path:" << paramsFilePath;
+
+  qDebug() << "\n";
 
   // 2) Pass the simDir into your controller (add a ctor or setter)
   SimulationController simCtrl(nullptr, simDir, swiftDir,
