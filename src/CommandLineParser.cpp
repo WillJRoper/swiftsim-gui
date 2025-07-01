@@ -80,11 +80,11 @@ void CommandLineParser::process(QCoreApplication &app) {
   }
 
   // Report what we have found
-  qDebug() << "Simulation directory:" << m_simDir;
-  qDebug() << "Swift directory:" << m_swiftDir;
-  qDebug() << "Images path:" << m_imagesPath;
-  qDebug() << "Log file path:" << m_logFilePath;
-  qDebug() << "Parameters file path:" << m_paramFilePath;
+  std::cout << "Simulation directory:" << m_simDir;
+  std::cout << "Swift directory:" << m_swiftDir;
+  std::cout << "Images path:" << m_imagesPath;
+  std::cout << "Log file path:" << m_logFilePath;
+  std::cout << "Parameters file path:" << m_paramFilePath;
 }
 
 QString CommandLineParser::simulationDirectory() const { return m_simDir; }

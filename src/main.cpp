@@ -28,8 +28,8 @@ int main(int argc, char **argv) {
   QString logFilePath = cli.logFilePath();
   QString paramsFilePath = cli.paramFilePath();
 
-  qDebug() << "Simulation directory:" << simDir;
-  qDebug() << "Swift directory:" << swiftDir;
+  std::cout << "Simulation directory:" << simDir;
+  std::cout << "Swift directory:" << swiftDir;
 
   // 2) Pass the simDir into your controller (add a ctor or setter)
   SimulationController simCtrl(nullptr, simDir, swiftDir,

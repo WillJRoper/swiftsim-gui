@@ -31,9 +31,9 @@ SimulationController::SimulationController(QObject *parent,
   // Set up and attach the runtime options dialog
   m_runtimeOpts = new RuntimeOptionsDialog(this);
 
-  qDebug() << "SimulationController initialized with directory:" << m_simDir
-           << "and Swift directory:" << m_swiftDir;
-  qDebug() << "Start time:" << startTime() << "End time:" << endTime();
+  std::cout << "SimulationController initialized with directory:" << m_simDir
+            << "and Swift directory:" << m_swiftDir;
+  std::cout << "Start time:" << startTime() << "End time:" << endTime();
 }
 
 SimulationController::~SimulationController() {
@@ -97,13 +97,13 @@ void SimulationController::runDryRun() {
   m_logFile.setFileName(outPath);
   if (!m_logFile.open(QIODevice::WriteOnly | QIODevice::Truncate |
                       QIODevice::Text)) {
-    qWarning() << "Cannot open log for writing:" << outPath;
+    std::cout << "Cannot open log for writing:" << outPath;
     return;
   }
 
   // assemble your simulator‐side arguments with “--dry-run” baked in:
   QStringList simArgs = m_runtimeOpts->runtimeArgs(QStringLiteral("--dry-run"));
-  qDebug() << "Dry‐run args:" << simArgs;
+  std::cout << "Dry‐run args:" << simArgs;
 
   QString program;
   QStringList args;
@@ -124,7 +124,7 @@ void SimulationController::runDryRun() {
   m_process.setProcessChannelMode(QProcess::MergedChannels);
   m_process.start(program, args);
   if (!m_process.waitForStarted(3000)) {
-    qWarning() << "Failed to start process:" << program << args;
+    std::cout << "Failed to start process:" << program << args;
   }
 }
 
@@ -138,12 +138,12 @@ void SimulationController::run() {
   m_logFile.setFileName(outPath);
   if (!m_logFile.open(QIODevice::WriteOnly | QIODevice::Truncate |
                       QIODevice::Text)) {
-    qWarning() << "Cannot open log for writing:" << outPath;
+    std::cout << "Cannot open log for writing:" << outPath;
     return;
   }
 
   QStringList simArgs = m_runtimeOpts->runtimeArgs(); // no extras
-  qDebug() << "Run args:" << simArgs;
+  std::cout << "Run args:" << simArgs;
 
   QString program;
   QStringList args;
@@ -163,18 +163,18 @@ void SimulationController::run() {
   m_process.setProcessChannelMode(QProcess::MergedChannels);
   m_process.start(program, args);
   if (!m_process.waitForStarted(3000)) {
-    qWarning() << "Failed to start process:" << program << args;
+    std::cout << "Failed to start process:" << program << args;
   }
 }
 
 void SimulationController::onProcessReadyRead() {
   if (!m_logFile.isOpen()) {
-    qWarning() << "Log file is not open, cannot write process output.";
+    std::cout << "Log file is not open, cannot write process output.";
     return;
   }
   QByteArray chunk = m_process.readAll();
   if (chunk.isEmpty()) {
-    qDebug() << "No new output from process.";
+    std::cout << "No new output from process.";
     return;
   }
 
@@ -216,7 +216,7 @@ void SimulationController::readTimeIntegrationParams(const std::string &path) {
       m_aEnd = cos["age_end"] ? cos["age_end"].as<double>() : 1.0;
     }
   } catch (const YAML::Exception &e) {
-    qWarning() << "YAML parse error in" << path << ":" << e.what();
+    std::cout << "YAML parse error in" << path << ":" << e.what();
     // keep defaults
   }
 }
