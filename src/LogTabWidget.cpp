@@ -1,96 +1,91 @@
-
 #include "LogTabWidget.h"
 #include <QApplication>
-#include <QDebug>
 #include <QFile>
-#include <QFontMetrics>
+#include <QFileSystemWatcher>
 #include <QPlainTextEdit>
-#include <QRegularExpression>
-#include <QResizeEvent>
 #include <QScrollBar>
 #include <QTextStream>
 #include <QTimer>
 #include <QVBoxLayout>
 
-#include "CommandLineParser.h"
-
-LogTabWidget::LogTabWidget(QWidget *parent)
+// 1) Construct with the log file path and optional parent.
+LogTabWidget::LogTabWidget(const QString &filePath, QWidget *parent)
     : QWidget(parent), m_textEdit(new QPlainTextEdit(this)),
-      m_filePath(""),              // default empty path
-      m_font(QApplication::font()) // start with app font
-{
+      m_watcher(new QFileSystemWatcher(this)), m_filePath(filePath),
+      m_font(QApplication::font()) {
+  // 2) Configure the text edit: read-only and default application font.
   m_textEdit->setReadOnly(true);
   m_textEdit->setFont(m_font);
 
+  // 3) Layout the text edit to fill this widget without margins.
   auto *layout = new QVBoxLayout(this);
   layout->setContentsMargins(0, 0, 0, 0);
   layout->addWidget(m_textEdit);
   setLayout(layout);
 
-  // Initial load of the log file
+  // 4) Start watching the log file for changes.
+  m_watcher->addPath(m_filePath);
+  connect(m_watcher, &QFileSystemWatcher::fileChanged, this,
+          &LogTabWidget::onFileChanged);
+
+  // 5) Initial load of existing log content.
   updateLogView();
 }
 
+// 6) Update font size on demand.
 void LogTabWidget::setFontSize(int pointSize) {
   m_font.setPointSize(pointSize);
   m_textEdit->setFont(m_font);
-  updateLogView(); // reflow lines for new metrics
 }
 
-void LogTabWidget::setFilePath(const QString &filePath) {
-  m_filePath = filePath;
-  updateLogView(); // reload the file
+// 7) Slot triggered when the file changes: schedule a reload, and re-add
+// watcher if rotated.
+// At the top of LogTabWidget.cpp, ensure you have:
+// …other existing includes…
+
+// 7) Slot triggered when the file changes: schedule a delayed reload via a new
+// QTimer.
+void LogTabWidget::onFileChanged(const QString &path) {
+  // 7.1) Create a new single‐shot timer (parented so it auto‐deletes on
+  // timeout).
+  QTimer *timer = new QTimer(this);
+  timer->setSingleShot(true);
+
+  // 7.2) When the timer fires, call updateLogView().
+  connect(timer, &QTimer::timeout, this, &LogTabWidget::updateLogView);
+
+  // 7.3) Start the timer with a 100 ms delay.
+  timer->start(100);
+
+  // 7.4) QFileSystemWatcher removes watches when files are replaced/rotated;
+  //      re-add it so we keep tailing across rotations.
+  if (!m_watcher->files().contains(path)) {
+    m_watcher->addPath(path);
+  }
 }
 
-void LogTabWidget::resizeEvent(QResizeEvent *event) {
-  QWidget::resizeEvent(event);
-  updateLogView();
-}
-
-double LogTabWidget::parseTimeFromLine(const QString &line) {
-  // split on whitespace
-  const auto parts = line.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
-  // if cosmology on, time is 5th (index 4), else 3rd (index 2)
-  int idx = 1;
-  bool ok = false;
-  double t = parts.value(idx).toDouble(&ok);
-  qInfo() << "Parsed time from line:" << line << "->" << t;
-  return ok ? t : 0.0;
-}
-
+// 8) Read the entire file and display it, preserving scroll position.
 void LogTabWidget::updateLogView() {
-  // 1) Open and read the whole file
   QFile file(m_filePath);
   if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-    qInfo() << "Failed to open log file:" << m_filePath;
+    // Show an error in the text edit if opening fails.
     m_textEdit->setPlainText(tr("Failed to open %1").arg(m_filePath));
-    emit currentTimeChanged(0.0);
     return;
   }
+
+  // Read all content from the file.
   QString content = QTextStream(&file).readAll();
   file.close();
 
-  // 2) Decide if we should stay at bottom after reloading
+  // Check if we were scrolled to the bottom.
   QScrollBar *sb = m_textEdit->verticalScrollBar();
-  bool wasAtBottom = (sb->value() == sb->maximum());
+  bool atBottom = (sb->value() == sb->maximum());
 
-  // 3) Replace the text
+  // Display the new content.
   m_textEdit->setPlainText(content);
 
-  // 4) If we were following the tail, scroll to bottom again
-  if (wasAtBottom) {
+  // If at bottom before, keep scrolling to bottom.
+  if (atBottom) {
     sb->setValue(sb->maximum());
-  }
-
-  // 5) Parse the last non-empty line for current time
-  // Split on any newline, skip empty
-  const QStringList lines =
-      content.split(QRegularExpression("[\r\n]+"), Qt::SkipEmptyParts);
-  if (!lines.isEmpty()) {
-    double t = parseTimeFromLine(lines.last());
-    qInfo() << "Emitting current time:" << t;
-    emit currentTimeChanged(t);
-  } else {
-    emit currentTimeChanged(0.0);
   }
 }

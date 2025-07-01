@@ -1,5 +1,7 @@
+#include <iostream>
 
 #include "CommandLineParser.h"
+#include "DataWatcher.h"
 #include "MainView.h"
 
 #include "SimulationController.h"
@@ -28,13 +30,7 @@ int main(int argc, char **argv) {
   QString logFilePath = cli.logFilePath();
   QString paramsFilePath = cli.paramFilePath();
 
-  qDebug() << "Simulation directory:" << simDir;
-  qDebug() << "Swift directory:" << swiftDir;
-  qDebug() << "Images path:" << imagesPath;
-  qDebug() << "Log file path:" << logFilePath;
-  qDebug() << "Parameters file path:" << paramsFilePath;
-
-  qDebug() << "\n";
+  std::cout << std::endl;
 
   // 2) Pass the simDir into your controller (add a ctor or setter)
   SimulationController simCtrl(nullptr, simDir, swiftDir,

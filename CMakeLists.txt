@@ -37,7 +37,10 @@ endif()
 find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
 
 # 4) Include dirs
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+include_directories(
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
 
 # 5) Sources & headers
 set(SOURCES
@@ -50,7 +53,10 @@ set(SOURCES
     src/LogTabWidget.cpp
     src/VizTabWidget.cpp
     src/DiagTabWidget.cpp
-    src/RuntimeOptions.cpp
+    src/DataWatcher.cpp
+    src/StepCounter.cpp
+    src/PlotWidget.cpp
+    src/ImageProgressWidget.cpp
 )
 
 set(HEADERS
@@ -62,8 +68,13 @@ set(HEADERS
     src/LogTabWidget.h
     src/VizTabWidget.h
     src/DiagTabWidget.h
-    src/RuntimeOptions.h
+    src/StyledSplitter.h
+    src/DataWatcher.h
+    src/StepCounter.h
+    src/PlotWidget.h
+    src/ImageProgressWidget.h
 )
+
 
 # 6) QRCs
 qt6_add_resources(IMAGE_RES resources/images.qrc)

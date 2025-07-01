@@ -1,6 +1,5 @@
 // SimulationController.cpp
 #include "SimulationController.h"
-#include "RuntimeOptions.h"
 #include <QDebug>
 #include <QDir>
 #include <QFile>
@@ -27,9 +26,6 @@ SimulationController::SimulationController(QObject *parent,
 
   // Read the time integration parameters from params.yaml
   readTimeIntegrationParams(paramsPath);
-
-  // Set up and attach the runtime options dialog
-  m_runtimeOpts = new RuntimeOptionsDialog(this);
 
   qDebug() << "SimulationController initialized with directory:" << m_simDir
            << "and Swift directory:" << m_swiftDir;
@@ -86,87 +82,6 @@ void SimulationController::compile() {
   emit logTextChanged();
 }
 
-void SimulationController::runDryRun() {
-  emit runStarted();
-  if (m_process.state() != QProcess::NotRunning) {
-    m_process.kill();
-    m_process.waitForFinished();
-  }
-  // reset the log
-  QString outPath = QDir(m_simDir).filePath("log.txt");
-  m_logFile.setFileName(outPath);
-  if (!m_logFile.open(QIODevice::WriteOnly | QIODevice::Truncate |
-                      QIODevice::Text)) {
-    qWarning() << "Cannot open log for writing:" << outPath;
-    return;
-  }
-
-  // assemble your simulator‐side arguments with “--dry-run” baked in:
-  QStringList simArgs = m_runtimeOpts->runtimeArgs(QStringLiteral("--dry-run"));
-  qDebug() << "Dry‐run args:" << simArgs;
-
-  QString program;
-  QStringList args;
-  QString stdbufPath = QStandardPaths::findExecutable("stdbuf");
-  QString swiftPath = QDir(m_swiftDir).filePath("swift");
-
-  if (!stdbufPath.isEmpty()) {
-    program = stdbufPath;
-    // stdbuf options first, then your swift binary, then its flags
-    args << "-oL" << swiftPath;
-    args += simArgs;
-  } else {
-    program = swiftPath;
-    args = simArgs;
-  }
-
-  m_process.setWorkingDirectory(m_simDir);
-  m_process.setProcessChannelMode(QProcess::MergedChannels);
-  m_process.start(program, args);
-  if (!m_process.waitForStarted(3000)) {
-    qWarning() << "Failed to start process:" << program << args;
-  }
-}
-
-void SimulationController::run() {
-  emit runStarted();
-  if (m_process.state() != QProcess::NotRunning) {
-    m_process.kill();
-    m_process.waitForFinished();
-  }
-  QString outPath = QDir(m_simDir).filePath("log.txt");
-  m_logFile.setFileName(outPath);
-  if (!m_logFile.open(QIODevice::WriteOnly | QIODevice::Truncate |
-                      QIODevice::Text)) {
-    qWarning() << "Cannot open log for writing:" << outPath;
-    return;
-  }
-
-  QStringList simArgs = m_runtimeOpts->runtimeArgs(); // no extras
-  qDebug() << "Run args:" << simArgs;
-
-  QString program;
-  QStringList args;
-  QString stdbufPath = QStandardPaths::findExecutable("stdbuf");
-  QString swiftPath = QDir(m_swiftDir).filePath("swift");
-
-  if (!stdbufPath.isEmpty()) {
-    program = stdbufPath;
-    args << "-oL" << swiftPath;
-    args += simArgs;
-  } else {
-    program = swiftPath;
-    args = simArgs;
-  }
-
-  m_process.setWorkingDirectory(m_simDir);
-  m_process.setProcessChannelMode(QProcess::MergedChannels);
-  m_process.start(program, args);
-  if (!m_process.waitForStarted(3000)) {
-    qWarning() << "Failed to start process:" << program << args;
-  }
-}
-
 void SimulationController::onProcessReadyRead() {
   if (!m_logFile.isOpen()) {
     qWarning() << "Log file is not open, cannot write process output.";
@@ -221,18 +136,6 @@ void SimulationController::readTimeIntegrationParams(const std::string &path) {
   }
 }
 
-double SimulationController::startTime() const {
-  if (m_runtimeOpts->withCosmology()) {
-    return m_aStart;
-  } else {
-    return m_tStart;
-  }
-}
+double SimulationController::startTime() const { return m_aStart; }
 
-double SimulationController::endTime() const {
-  if (m_runtimeOpts->withCosmology()) {
-    return m_aEnd;
-  } else {
-    return m_tEnd;
-  }
-}
+double SimulationController::endTime() const { return m_aEnd; }

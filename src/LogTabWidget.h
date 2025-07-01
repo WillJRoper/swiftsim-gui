@@ -1,36 +1,34 @@
 #pragma once
 
+#include <QFileSystemWatcher>
+#include <QFont>
 #include <QString>
 #include <QWidget>
 
-#include "CommandLineParser.h"
-
 class QPlainTextEdit;
 
+// LogTabWidget provides a tailing view of a log file, auto-updated when the
+// file changes.
 class LogTabWidget : public QWidget {
   Q_OBJECT
-public:
-  explicit LogTabWidget(QWidget *parent = nullptr);
 
-  // Call this when the user picks a new font size
+public:
+  // Construct with the path to the log file.
+  explicit LogTabWidget(const QString &filePath, QWidget *parent = nullptr);
+
+  // Call this when the user picks a new font size.
   void setFontSize(int pointSize);
 
-  // Set the file path to read from
-  void setFilePath(const QString &filePath);
-
-  // Call this to update the view
-  void updateLogView();
-
-protected:
-  void resizeEvent(QResizeEvent *event) override;
-
-signals:
-  void currentTimeChanged(double t);
+private slots:
+  // Invoked when the watched file is modified or replaced.
+  void onFileChanged(const QString &path);
 
 private:
-  QPlainTextEdit *m_textEdit;
-  QString m_filePath;
-  QFont m_font;
+  // Reloads the entire log into the text edit.
+  void updateLogView();
 
-  double parseTimeFromLine(const QString &line);
+  QPlainTextEdit *m_textEdit;    // Read-only display area.
+  QFileSystemWatcher *m_watcher; // Watches the file for updates.
+  QString m_filePath;            // Path to the log file.
+  QFont m_font;                  // Current font for display.
 };
