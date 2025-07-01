@@ -22,7 +22,8 @@ public:
   explicit SimulationController(
       QObject *parent = nullptr,
       const QString &simDir = QStringLiteral("mock_sim"),
-      const QString &swiftDir = QString());
+      const QString &swiftDir = QString(),
+      const std::string &paramsPath = std::string("params.yaml"));
 
   ~SimulationController();
 
@@ -34,7 +35,7 @@ public:
   double startTime() const;
   double endTime() const;
 
-  void readTimeIntegrationParams();
+  void readTimeIntegrationParams(const std::string &path = "params.yaml");
 
   // Runtime option
   RuntimeOptionsDialog *m_runtimeOpts = nullptr;

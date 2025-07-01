@@ -12,18 +12,22 @@ class LogTabWidget;
 class QMenu;
 class QTabWidget;
 class RuntimeOptionsDialog;
+class CommandLineParser;
+class StyledSplitter;
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
 
 public:
-  explicit MainWindow(SimulationController *simCtrl, QWidget *parent = nullptr);
+  explicit MainWindow(SimulationController *simCtrl,
+                      CommandLineParser *cmdParser, QWidget *parent = nullptr);
 
 private:
   // setup routines
+  void createSplitterAndLayouts();
   void createActions();
   void createMenus();
-  void createTabs();
+  void createTabs(CommandLineParser *cmdParser);
   void createProgressBar();
 
   void switchToTab(int index);
@@ -35,6 +39,11 @@ private:
   SimulationController *m_simCtrl;
   LogTabWidget *m_logTab;
   QTabWidget *m_tabs;
+
+  // NEW: sections for splitter layout
+  QWidget *m_topBox = nullptr;
+  QWidget *m_middleGap = nullptr;
+  StyledSplitter *m_splitter = nullptr;
 
   // progress bar
   QProgressBar *m_progressBar;

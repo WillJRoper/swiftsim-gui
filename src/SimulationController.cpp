@@ -14,7 +14,8 @@
 
 SimulationController::SimulationController(QObject *parent,
                                            const QString &simDir,
-                                           const QString &swiftDir)
+                                           const QString &swiftDir,
+                                           const std::string &paramsPath)
     : QObject(parent), m_logText("Ready.\n"), m_simDir(simDir),
       m_swiftDir(swiftDir), m_process(), m_logFile() {
   m_process.setProcessChannelMode(QProcess::MergedChannels);
@@ -25,7 +26,7 @@ SimulationController::SimulationController(QObject *parent,
           &SimulationController::onProcessFinished);
 
   // Read the time integration parameters from params.yaml
-  readTimeIntegrationParams();
+  readTimeIntegrationParams(paramsPath);
 
   // Set up and attach the runtime options dialog
   m_runtimeOpts = new RuntimeOptionsDialog(this);
@@ -167,11 +168,15 @@ void SimulationController::run() {
 }
 
 void SimulationController::onProcessReadyRead() {
-  if (!m_logFile.isOpen())
+  if (!m_logFile.isOpen()) {
+    qWarning() << "Log file is not open, cannot write process output.";
     return;
+  }
   QByteArray chunk = m_process.readAll();
-  if (chunk.isEmpty())
+  if (chunk.isEmpty()) {
+    qDebug() << "No new output from process.";
     return;
+  }
 
   QTextStream out(&m_logFile);
   out << QString::fromLocal8Bit(chunk);
@@ -188,10 +193,9 @@ void SimulationController::onProcessFinished(int /*exitCode*/,
   emit visualsChanged();
 }
 
-void SimulationController::readTimeIntegrationParams() {
-  const auto path = QDir(m_simDir).filePath("params.yaml");
+void SimulationController::readTimeIntegrationParams(const std::string &path) {
   try {
-    YAML::Node doc = YAML::LoadFile(path.toStdString());
+    YAML::Node doc = YAML::LoadFile(path);
 
     // Defaults
     m_tStart = 0.0;

@@ -24,15 +24,19 @@ int main(int argc, char **argv) {
   cli.process(app);
   QString simDir = cli.simulationDirectory();
   QString swiftDir = cli.swiftDirectory();
+  QString imagesPath = cli.imagesPath();
+  QString logFilePath = cli.logFilePath();
+  QString paramsFilePath = cli.paramFilePath();
 
   qDebug() << "Simulation directory:" << simDir;
   qDebug() << "Swift directory:" << swiftDir;
 
   // 2) Pass the simDir into your controller (add a ctor or setter)
-  SimulationController simCtrl(nullptr, simDir, swiftDir);
+  SimulationController simCtrl(nullptr, simDir, swiftDir,
+                               paramsFilePath.toUtf8().constData());
 
   // 3) Launch main window
-  MainWindow win(&simCtrl);
+  MainWindow win(&simCtrl, &cli);
   win.show();
   return app.exec();
 }

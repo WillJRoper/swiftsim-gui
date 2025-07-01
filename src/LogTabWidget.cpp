@@ -1,5 +1,7 @@
+
 #include "LogTabWidget.h"
 #include <QApplication>
+#include <QDebug>
 #include <QFile>
 #include <QFontMetrics>
 #include <QPlainTextEdit>
@@ -10,9 +12,11 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
+#include "CommandLineParser.h"
+
 LogTabWidget::LogTabWidget(QWidget *parent)
     : QWidget(parent), m_textEdit(new QPlainTextEdit(this)),
-      m_filePath("mock_sim/log.txt"),
+      m_filePath(""),              // default empty path
       m_font(QApplication::font()) // start with app font
 {
   m_textEdit->setReadOnly(true);
@@ -50,6 +54,7 @@ double LogTabWidget::parseTimeFromLine(const QString &line) {
   int idx = 1;
   bool ok = false;
   double t = parts.value(idx).toDouble(&ok);
+  qInfo() << "Parsed time from line:" << line << "->" << t;
   return ok ? t : 0.0;
 }
 
@@ -57,6 +62,7 @@ void LogTabWidget::updateLogView() {
   // 1) Open and read the whole file
   QFile file(m_filePath);
   if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    qInfo() << "Failed to open log file:" << m_filePath;
     m_textEdit->setPlainText(tr("Failed to open %1").arg(m_filePath));
     emit currentTimeChanged(0.0);
     return;
@@ -82,6 +88,7 @@ void LogTabWidget::updateLogView() {
       content.split(QRegularExpression("[\r\n]+"), Qt::SkipEmptyParts);
   if (!lines.isEmpty()) {
     double t = parseTimeFromLine(lines.last());
+    qInfo() << "Emitting current time:" << t;
     emit currentTimeChanged(t);
   } else {
     emit currentTimeChanged(0.0);

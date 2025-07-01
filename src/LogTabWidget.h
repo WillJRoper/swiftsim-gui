@@ -3,6 +3,8 @@
 #include <QString>
 #include <QWidget>
 
+#include "CommandLineParser.h"
+
 class QPlainTextEdit;
 
 class LogTabWidget : public QWidget {
