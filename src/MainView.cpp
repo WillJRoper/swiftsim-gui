@@ -167,9 +167,9 @@ void MainWindow::createActions() {
           &MainWindow::updateStepCounter);
 
   // ─── Plot updates from DataWatcher ──────────────────────────
-  connect(m_dataWatcher, &DataWatcher::stepChanged, m_wallTimePlot,
-          &PlotWidget::refresh);
-  connect(m_dataWatcher, &DataWatcher::stepChanged, m_particlePlot,
+  connect(m_dataWatcher, &DataWatcher::totalWallClockTimeChanged,
+          m_wallTimePlot, &PlotWidget::refresh);
+  connect(m_dataWatcher, &DataWatcher::numberOfGPartsChanged, m_particlePlot,
           &PlotWidget::refresh);
 
   // ─── Update the top box top widget on a Timer ─────────────────────

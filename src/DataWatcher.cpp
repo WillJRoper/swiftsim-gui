@@ -79,7 +79,7 @@ void DataWatcher::parseLine(const QString &line) {
 
   // 1) Step
   int step = parts[idx++].toInt(&ok);
-  if (ok && emitSignals)
+  if (ok)
     emit stepChanged(step);
 
   // 2) Scale factor
