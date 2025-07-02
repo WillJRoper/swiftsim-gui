@@ -69,24 +69,32 @@ void DataWatcher::parseLine(const QString &line) {
   bool ok = false;
   int idx = 0;
 
+  // We should only emit if at least half of the gparts have been updated
+  bool emitSignals = true;
+  if (m_numGParts > 0 && parts[4].toInt(&ok) < m_numGParts / 2) {
+    if (ok) {
+      emitSignals = false; // Not enough gparts updated this time
+    }
+  }
+
   // 1) Step
   int step = parts[idx++].toInt(&ok);
-  if (ok)
+  if (ok && emitSignals)
     emit stepChanged(step);
 
   // 2) Scale factor
   double scaleFactor = parts[idx++].toDouble(&ok);
-  if (ok)
+  if (ok && emitSignals)
     emit scaleFactorChanged(scaleFactor);
 
   // 3) Redshift
   double redshift = parts[idx++].toDouble(&ok);
-  if (ok)
+  if (ok && emitSignals)
     emit redshiftChanged(redshift);
 
   // 4) Number of parts
   qint64 numParts = parts[idx++].toLongLong(&ok);
-  if (ok) {
+  if (ok && emitSignals) {
     emit numberOfPartsChanged(numParts);
     m_totalNumParts += numParts;
     emit totalNumberOfPartsChanged(m_totalNumParts);
@@ -94,7 +102,7 @@ void DataWatcher::parseLine(const QString &line) {
 
   // 5) Number of gparts
   qint64 numGParts = parts[idx++].toLongLong(&ok);
-  if (ok) {
+  if (ok && emitSignals) {
     emit numberOfGPartsChanged(numGParts);
     m_totalGParts += numGParts;
     emit totalNumberOfGPartsChanged(m_totalGParts);
@@ -102,7 +110,7 @@ void DataWatcher::parseLine(const QString &line) {
 
   // 6) Number of sparts
   qint64 numSParts = parts[idx++].toLongLong(&ok);
-  if (ok) {
+  if (ok && emitSignals) {
     emit numberOfSPartsChanged(numSParts);
     m_totalSParts += numSParts;
     emit totalNumberOfSPartsChanged(m_totalSParts);
@@ -110,7 +118,7 @@ void DataWatcher::parseLine(const QString &line) {
 
   // 7) Number of black holes
   qint64 numBH = parts[idx++].toLongLong(&ok);
-  if (ok) {
+  if (ok && emitSignals) {
     emit numberOfBlackHolesChanged(numBH);
     m_totalBlackHoles += numBH;
     emit totalNumberOfBlackHolesChanged(m_totalBlackHoles);
@@ -118,7 +126,7 @@ void DataWatcher::parseLine(const QString &line) {
 
   // 8) Wall-clock time for this step
   double wallTime = parts[idx++].toDouble(&ok);
-  if (ok) {
+  if (ok && emitSignals) {
     emit wallClockTimeForStepChanged(wallTime);
     m_totalWallClockTime += wallTime;
     emit totalWallClockTimeChanged(m_totalWallClockTime);
@@ -126,6 +134,11 @@ void DataWatcher::parseLine(const QString &line) {
 
   // 9) Percentage of full run
   double percentRun = parts[idx++].toDouble(&ok);
-  if (ok)
+  if (ok && emitSignals)
     emit percentRunChanged(percentRun);
+
+  // If we haven't set it then grab the number of gparts we have
+  if (m_numGParts < numGParts) {
+    m_numGParts = numGParts;
+  }
 }

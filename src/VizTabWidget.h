@@ -105,7 +105,7 @@ private:
   int m_nFrames = 0; ///< number of rotation frames per file
   int m_xres = 0;    ///< width of each frame
   int m_yres = 0;    ///< height of each frame
-  int m_fps = 25;    ///< how many rotation frames per second
+  int m_fps = 20;    ///< how many rotation frames per second
 
   // for percentile-based normalization (computed once per file)
   float m_percentileLow = 1.0f;   ///< lower percentile (0–100)
@@ -116,4 +116,8 @@ private:
   Colormap m_colormap = Colormap::Plasma;
   const uint8_t (*m_cmap)[3] = nullptr;
   size_t m_cmap_size = 0;
+
+  // Logo label for branding
+  QLabel *m_logoLabel;
+  QPixmap m_logoOrig;
 };

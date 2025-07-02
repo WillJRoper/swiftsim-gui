@@ -24,6 +24,13 @@ PlotWidget::PlotWidget(const QString &scriptPath, const QString &csvPath,
 }
 
 void PlotWidget::refresh(int step) {
+  // Flag that we are generating a new plot, skip if already generating
+  if (m_isGenerating) {
+    qWarning() << "Plot generation already in progress, skipping refresh.";
+    return;
+  }
+  m_isGenerating = true;
+
   // 1) Kick off the Python script *asynchronously*
   QProcess *proc = new QProcess(this);
 
@@ -60,4 +67,6 @@ void PlotWidget::onPlotProcessFinished(int exitCode,
   }
 
   proc->deleteLater();
+
+  m_isGenerating = false; // Reset the flag
 }

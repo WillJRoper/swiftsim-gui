@@ -17,7 +17,8 @@
 /**************************************************************************************************/
 VizTabWidget::VizTabWidget(QWidget *parent)
     : QWidget(parent), m_imageLabel(new ScaledPixmapLabel(this)),
-      m_overlayLabel(new QLabel(this)), m_timer(new QTimer(this)) {
+      m_overlayLabel(new QLabel(this)), m_timer(new QTimer(this)),
+      m_logoLabel(new QLabel(this)) {
   // Layout
   auto *lay = new QVBoxLayout(this);
   lay->setContentsMargins(0, 0, 0, 0);
@@ -38,6 +39,14 @@ VizTabWidget::VizTabWidget(QWidget *parent)
 
   // Set up our default colormap:
   setColormap(Colormap::Plasma);
+
+  // Create the logo label (bottom‐right watermark)
+  m_logoOrig = QPixmap(QStringLiteral(":/images/swift-logo-white.png"));
+  Q_ASSERT(!m_logoOrig.isNull());
+  m_logoLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+  m_logoLabel->setStyleSheet("background:transparent;");
+  m_logoLabel->raise();
+  m_logoLabel->show();
 
   // Directory watcher → slot
   connect(&m_dirWatcher, &QFileSystemWatcher::directoryChanged, this,
@@ -193,6 +202,20 @@ void VizTabWidget::computePercentiles() {
 
   std::nth_element(all.begin(), all.begin() + hiIdx, all.end());
   m_upperValue = all[hiIdx];
+
+  // It's possible that when there are few populate pixels that both upper and
+  // lower values are the same, in which case we need can fall back to a clean
+  // minimum and maximum.
+  if (m_lowerValue == m_upperValue) {
+    m_lowerValue = std::numeric_limits<float>::max();
+    m_upperValue = 0.0f;
+    for (float val : all) {
+      if (val < m_lowerValue)
+        m_lowerValue = val;
+      if (val > m_upperValue)
+        m_upperValue = val;
+    }
+  }
 }
 
 void VizTabWidget::setColormap(Colormap map) {
@@ -236,7 +259,7 @@ void VizTabWidget::setDatasetKey(const QString &key) {
   } else if (key == "gas") {
     setColormap(Colormap::Magma);
   } else if (key == "stars") {
-    setColormap(Colormap::Viridis);
+    setColormap(Colormap::Greyscale);
   } else if (key == "gas_temperature") {
     setColormap(Colormap::Inferno);
   } else {
@@ -299,7 +322,29 @@ void VizTabWidget::onImageDirectoryChanged(const QString & /*path*/) {
 /**************************************************************************************************/
 void VizTabWidget::resizeEvent(QResizeEvent *ev) {
   QWidget::resizeEvent(ev);
+
+  // 1) Top-left overlay
   m_overlayLabel->move(10, 10);
+  m_overlayLabel->raise();
+
+  // 2) Scale the logo to ~15% of widget height
+  const int margin = 10;
+  int maxH = height() * 20 / 100; // 15% of total height
+  QSize target(maxH * m_logoOrig.width() / m_logoOrig.height(), maxH);
+  QPixmap scaled =
+      m_logoOrig.scaled(target, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+
+  // 3) Apply pixmap + resize label
+  m_logoLabel->setPixmap(scaled);
+  m_logoLabel->setFixedSize(scaled.size());
+
+  // 4) Reposition bottom-right
+  int x = width() - scaled.width() - margin;
+  int y = height() - scaled.height() - margin;
+  m_logoLabel->move(x, y);
+  m_logoLabel->raise();
+
+  // 5) Finally redraw your frame
   loadCurrentFrame();
 }
 

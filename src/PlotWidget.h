@@ -25,4 +25,7 @@ private:
   QString m_csvPath;
   QString m_outputPng;
   ScaledPixmapLabel *m_imageLabel;
+
+  // Flag for whether the plot is currently being generated
+  bool m_isGenerating = false;
 };

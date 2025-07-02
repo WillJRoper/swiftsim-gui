@@ -65,6 +65,9 @@ private:
   qint64 m_totalBlackHoles = 0;
   double m_totalWallClockTime = 0;
 
+  // Number of gparts in the simulation
+  int m_numGParts = 0;
+
 signals:
   // Per-step values
   void stepChanged(int step);
