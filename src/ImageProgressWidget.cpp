@@ -41,30 +41,42 @@ void ImageProgressWidget::paintEvent(QPaintEvent *) {
   QPainter p(this);
   p.setRenderHint(QPainter::SmoothPixmapTransform, true);
 
-  // Destination rectangle: fill the widget
+  // Destination: full widget rect
   QRect dst = rect();
 
-  // Keep aspect ratio: compute a scaled pixmap
+  // Keep aspect ratio
   QPixmap col =
       m_color.scaled(dst.size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
   QPixmap gry =
       m_gray.scaled(dst.size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
 
-  // Center both in the widget
+  // Center both
   QPoint topLeft((width() - col.width()) / 2, (height() - col.height()) / 2);
   QRect drawRect(topLeft, col.size());
 
-  // Compute split line in widget coords
-  int splitX = drawRect.left() + int(m_progress * drawRect.width());
+  // Define starting offset fraction (e.g., 20% in)
+  const double startOffset = 0.275;
+  // Remap progress [0..1] to [startOffset..1]
+  double effFrac = startOffset + m_progress * (1.0 - startOffset);
 
-  // 1) Draw grayscale full image
+  // Compute split X based on remapped fraction
+  int splitX = drawRect.left() + int(effFrac * drawRect.width());
+
+  // 1) Draw full grayscale
   p.drawPixmap(drawRect, gry);
 
-  // 2) Draw colored left portion
+  // 2) Draw color portion up to splitX
   if (splitX > drawRect.left()) {
-    QRect srcLeft(0, 0, int(col.width() * m_progress), col.height());
+    QRect srcLeft(0, 0, int(col.width() * effFrac), col.height());
     QRect dstLeft(drawRect.left(), drawRect.top(), splitX - drawRect.left(),
                   drawRect.height());
     p.drawPixmap(dstLeft, col, srcLeft);
   }
+}
+
+QPixmap ImageProgressWidget::toGrayscale(const QPixmap &src) {
+  // Convert QPixmap to QImage, then to grayscale and back to QPixmap
+  QImage img = src.toImage();
+  QImage gray = img.convertToFormat(QImage::Format_Grayscale8);
+  return QPixmap::fromImage(gray);
 }

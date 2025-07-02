@@ -18,6 +18,7 @@ class StyledSplitter;
 class DataWatcher;
 class StepCounterWidget;
 class PlotWidget;
+class ImageProgressWidget;
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -51,8 +52,7 @@ private:
   StyledSplitter *m_splitter = nullptr;
 
   // progress bar
-  QProgressBar *m_progressBar;
-  QPropertyAnimation *m_progressAnim;
+  ImageProgressWidget *m_progressWidget;
 
   // Step Counter
   StepCounterWidget *m_stepCounter;

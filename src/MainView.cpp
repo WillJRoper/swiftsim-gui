@@ -4,6 +4,7 @@
 #include "DataWatcher.h"
 #include "DiagTabWidget.h"
 #include "HomeTabWidget.h"
+#include "ImageProgressWidget.h"
 #include "LogTabWidget.h"
 #include "MainView.h"
 #include "PlotWidget.h"
@@ -98,26 +99,32 @@ void MainWindow::createActions() {
           [this] { m_topStack->setCurrentIndex(0); });
   addAction(showDashboard);
 
+  // ─── Step counter shortcut ──────────────────────────────
+  QAction *showStepCounter = new QAction(tr("Step Counter"), this);
+  showStepCounter->setShortcut(QKeySequence(Qt::Key_7));
+  showStepCounter->setShortcutContext(Qt::ApplicationShortcut);
+  connect(showStepCounter, &QAction::triggered, this,
+          [this] { m_topStack->setCurrentIndex(1); });
+  addAction(showStepCounter);
+
   // ─── Plot view shortcuts ──────────────────────────────────────
   QAction *showWallTime = new QAction(tr("Wall-Clock Plot"), this);
   showWallTime->setShortcut(QKeySequence(Qt::Key_8));
   showWallTime->setShortcutContext(Qt::ApplicationShortcut);
   connect(showWallTime, &QAction::triggered, this,
-          [this] { m_topStack->setCurrentIndex(1); });
+          [this] { m_topStack->setCurrentIndex(2); });
   addAction(showWallTime);
 
   QAction *showParticles = new QAction(tr("Particles Plot"), this);
   showParticles->setShortcut(QKeySequence(Qt::Key_9));
   showParticles->setShortcutContext(Qt::ApplicationShortcut);
   connect(showParticles, &QAction::triggered, this,
-          [this] { m_topStack->setCurrentIndex(2); });
+          [this] { m_topStack->setCurrentIndex(3); });
   addAction(showParticles);
 
   // ─── Dashboard updates from DataWatcher ───────────────────────
   connect(m_dataWatcher, &DataWatcher::percentRunChanged, this,
           &MainWindow::updateProgressBar);
-  connect(m_dataWatcher, &DataWatcher::scaleFactorChanged, this,
-          &MainWindow::updateCurrentTimeLabel);
   connect(m_dataWatcher, &DataWatcher::stepChanged, this,
           &MainWindow::updateStepCounter);
 
@@ -203,32 +210,22 @@ void MainWindow::createProgressBar() {
   tlLayout->setContentsMargins(0, 2, 0, 2);
   tlLayout->setSpacing(8);
 
-  // Progress bar
-  m_progressBar = new QProgressBar(timeline);
-  m_progressBar->setRange(0, 100);
-  m_progressBar->setTextVisible(false);
-  m_progressBar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-  tlLayout->addWidget(m_progressBar);
-
-  // Animated transitions
-  m_progressAnim = new QPropertyAnimation(m_progressBar, "value", this);
-  m_progressAnim->setDuration(300);
-  m_progressAnim->setEasingCurve(QEasingCurve::OutCubic);
-
-  // Current time label
-  double t0 = 0.0;
-  QString txt = QString("%1").arg(t0, m_currentLabelWidth, 'e',
-                                  m_currentLabelPrecision, QChar(' '));
-  m_currentLabel = new QLabel(txt, timeline);
-  m_currentLabel->setStyleSheet(
-      "QLabel { color: #E50000; font-weight: bold; }");
-  tlLayout->addWidget(m_currentLabel);
+  // Image‐based progress “bar”
+  m_progressWidget =
+      new ImageProgressWidget(":/images/evolution.jpg", timeline);
+  // start empty
+  m_progressWidget->setProgress(0.0);
+  m_progressWidget->setSizePolicy(QSizePolicy::Expanding,
+                                  QSizePolicy::Preferred);
+  tlLayout->addWidget(m_progressWidget);
 
   // Add to dashboard page
   auto *dashPage = m_topStack->widget(0);
   auto *vbox = static_cast<QVBoxLayout *>(dashPage->layout());
-  vbox->addWidget(m_stepCounter);
   vbox->addWidget(timeline);
+
+  // Make another widget for the step counter
+  m_topStack->addWidget(m_stepCounter);
 }
 
 /**
@@ -268,11 +265,8 @@ void MainWindow::updateProgressBar(double pcent) {
   // Ensure pcent is in [0, 100]
   pcent = qBound(0.0, pcent, 100.0);
 
-  // Update the progress bar with animation
-  m_progressAnim->stop();
-  m_progressAnim->setStartValue(m_progressBar->value());
-  m_progressAnim->setEndValue(int(pcent + 0.5));
-  m_progressAnim->start();
+  // Drive our image widget (0.0–1.0)
+  m_progressWidget->setProgress(pcent / 100.0);
 }
 
 void MainWindow::updateCurrentTimeLabel(double t) {
