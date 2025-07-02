@@ -15,7 +15,7 @@ LogTabWidget::LogTabWidget(const QString &filePath, QWidget *parent)
       m_font(QApplication::font()) {
   // 2) Configure the text edit: read-only and default application font.
   m_textEdit->setReadOnly(true);
-  m_textEdit->setFont(m_font);
+  m_textEdit->setObjectName("logEditor");
 
   // 3) Layout the text edit to fill this widget without margins.
   auto *layout = new QVBoxLayout(this);

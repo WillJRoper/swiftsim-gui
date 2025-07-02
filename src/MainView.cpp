@@ -3,7 +3,6 @@
 
 #include "CommandLineParser.h"
 #include "DataWatcher.h"
-#include "DiagTabWidget.h"
 #include "HomeTabWidget.h"
 #include "ImageProgressWidget.h"
 #include "LogTabWidget.h"
@@ -58,7 +57,7 @@ MainWindow::MainWindow(SimulationController *simCtrl,
  * @brief Creates all QAction shortcuts and wires up DataWatcher signals.
  *
  * Shortcuts:
- *   - H/L/V/D : switch tabs (Home/Log/Visualise/Diagnostics)
+ *   - H/L/V/D : switch tabs (Home/Log/Visualise)
  *   - 0       : Dashboard (counter + progress bar)
  *   - 7       : Wall-Clock Time plot (page 1)
  *   - 8       : Percent-Complete plot (page 2)
@@ -85,13 +84,8 @@ void MainWindow::createActions() {
   QAction *vizTabAct = new QAction(tr("Visualise"), this);
   vizTabAct->setShortcut(QKeySequence(Qt::Key_V));
   vizTabAct->setShortcutContext(Qt::ApplicationShortcut);
-  connect(vizTabAct, &QAction::triggered, this, [this] { switchToTab(3); });
+  connect(vizTabAct, &QAction::triggered, this, [this] { switchToTab(2); });
   addAction(vizTabAct);
-  QAction *diagTabAct = new QAction(tr("Diagnostics"), this);
-  diagTabAct->setShortcut(QKeySequence(Qt::Key_D));
-  diagTabAct->setShortcutContext(Qt::ApplicationShortcut);
-  connect(diagTabAct, &QAction::triggered, this, [this] { switchToTab(2); });
-  addAction(diagTabAct);
 
   // ─── Switch to dark matter visualisation (1) ────────────────
   QAction *showDarkMatterViz =
@@ -192,7 +186,7 @@ void MainWindow::createActions() {
  *  - Page 0: dashboard (counter + progress bar)
  *  - Pages 1–3: reserved for plots (added later in createPlots())
  *  - A middle expandable spacer
- *  - A bottom QTabWidget for Home/Log/Visualise/Diagnostics
+ *  - A bottom QTabWidget for Home/Log/Visualise
  */
 void MainWindow::createSplitterAndLayouts() {
   // Create a vertical splitter; children non‐collapsible
@@ -242,7 +236,6 @@ void MainWindow::createTabs(CommandLineParser *cmdParser) {
   m_tabs->addTab(new HomeTabWidget, tr("Home"));
   m_logTab = new LogTabWidget(cmdParser->logFilePath(), this);
   m_tabs->addTab(m_logTab, tr("Log"));
-  m_tabs->addTab(new DiagTabWidget, tr("Diagnostics"));
 }
 
 /**

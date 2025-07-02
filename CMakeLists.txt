@@ -56,7 +56,6 @@ set(SOURCES
     src/HomeTabWidget.cpp
     src/LogTabWidget.cpp
     src/VizTabWidget.cpp
-    src/DiagTabWidget.cpp
     src/DataWatcher.cpp
     src/StepCounter.cpp
     src/PlotWidget.cpp
@@ -71,7 +70,6 @@ set(HEADERS
     src/HomeTabWidget.h
     src/LogTabWidget.h
     src/VizTabWidget.h
-    src/DiagTabWidget.h
     src/StyledSplitter.h
     src/DataWatcher.h
     src/StepCounter.h
