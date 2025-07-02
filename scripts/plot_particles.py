@@ -21,13 +21,19 @@ def main():
     # 3) Plot setup
     plt.style.use("dark_background")
     plt.figure(figsize=(6.4, 2.7306666667), dpi=100)
-    plt.xlabel("Scale Factor (a)", color=HAL_RED)
-    plt.ylabel("Particle Count", color=HAL_RED)
+    plt.xlabel("Scale Factor (a)", color=HAL_RED, fontsize=8)
+    plt.ylabel("Particle Count", color=HAL_RED, fontsize=8)
     plt.grid(True, which="both", color=HAL_RED, linestyle="--", linewidth=0.5)
 
     ax = plt.gca()
     ax.set_yscale("log")
-    ax.tick_params(colors=HAL_RED, which="both", axis="both", labelcolor=HAL_RED)
+    ax.tick_params(
+        colors=HAL_RED,
+        which="both",
+        axis="both",
+        labelcolor=HAL_RED,
+        labelsize=6,
+    )
     for spine in ax.spines.values():
         spine.set_color(HAL_RED)
         spine.set_linewidth(0.5)
@@ -71,6 +77,7 @@ def main():
         facecolor="black",
         edgecolor=HAL_RED,
         labelcolor=HAL_RED,
+        fontsize=8,
     )
 
     plt.tight_layout()

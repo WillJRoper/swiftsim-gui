@@ -26,12 +26,12 @@ def main():
     # 3) Plot setup
     plt.style.use("dark_background")
     plt.figure(figsize=(6.4, 2.7306666667), dpi=100)
-    plt.xlabel("Scale Factor (a)", color=HAL_RED)
-    plt.ylabel("Runtime (Hours)", color=HAL_RED)
+    plt.xlabel("Scale Factor (a)", color=HAL_RED, fontsize=8)
+    plt.ylabel("Runtime (Hours)", color=HAL_RED, fontsize=8)
     plt.grid(True, which="both", color=HAL_RED, linestyle="--", linewidth=0.5)
 
     # Axis label colors
-    plt.gca().tick_params(colors=HAL_RED)
+    plt.gca().tick_params(colors=HAL_RED, which="both", axis="both", labelsize=6)
     for spine in plt.gca().spines.values():
         spine.set_color(HAL_RED)
         spine.set_linewidth(0.5)
