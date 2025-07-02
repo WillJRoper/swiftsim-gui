@@ -19,6 +19,7 @@ class DataWatcher;
 class StepCounterWidget;
 class PlotWidget;
 class ImageProgressWidget;
+class VizTabWidget;
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -27,6 +28,11 @@ public:
   explicit MainWindow(SimulationController *simCtrl,
                       CommandLineParser *cmdParser, QWidget *parent = nullptr);
 
+private slots:
+  /// Control for swapping the top page in the stacked widget at the top
+  /// of the UI
+  void rotateTopPage();
+
 private:
   // setup routines
   void createSplitterAndLayouts();
@@ -34,6 +40,7 @@ private:
   void createTabs(CommandLineParser *cmdParser);
   void createProgressBar();
   void createPlots();
+  void createVisualisations();
 
   void switchToTab(int index);
 
@@ -68,8 +75,14 @@ private:
   PlotWidget *m_percentPlot;
   PlotWidget *m_particlePlot;
 
+  // Visualization tab (4 rotating‐cube datasets)
+  VizTabWidget *m_vizTab;
+
   // Current time label
   QLabel *m_currentLabel;
   int m_currentLabelWidth = 12;
   int m_currentLabelPrecision = 3;
+
+  // Actions for the menu bar
+  QTimer *m_topRotateTimer = nullptr;
 };

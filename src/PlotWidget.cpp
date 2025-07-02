@@ -24,26 +24,40 @@ PlotWidget::PlotWidget(const QString &scriptPath, const QString &csvPath,
 }
 
 void PlotWidget::refresh(int step) {
-  // 1) Call the Python script synchronously
-  QProcess proc;
+  // 1) Kick off the Python script *asynchronously*
+  QProcess *proc = new QProcess(this);
+
+  // Clean up when done
+  proc->setParent(this);
+
+  // Connect the finished signal
+  connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+          this, &PlotWidget::onPlotProcessFinished);
+
   QStringList args{m_scriptPath, m_csvPath, m_outputPng};
-  qInfo() << "Running plot script: python" << qPrintable(m_scriptPath)
-          << " with args: " << args.join(" ");
-  proc.start("python", args);
-  if (!proc.waitForFinished(30000)) { // wait up to 30s
-    qWarning("Plot process timed out.");
+  proc->start("python", args);
+}
+
+void PlotWidget::onPlotProcessFinished(int exitCode,
+                                       QProcess::ExitStatus status) {
+  // Sender is our QProcess*
+  QProcess *proc = qobject_cast<QProcess *>(sender());
+  if (!proc)
     return;
-  }
-  if (proc.exitCode() != 0) {
-    qWarning("Plot process error: %s", proc.readAllStandardError().constData());
+
+  if (exitCode != 0 || status != QProcess::NormalExit) {
+    qWarning() << "Plot process error:" << proc->readAllStandardError();
+    proc->deleteLater();
     return;
   }
 
   // 2) Load and display the PNG
   QPixmap pix(m_outputPng);
   if (pix.isNull()) {
-    qWarning("Failed to load plot image '%s'.", qPrintable(m_outputPng));
-    return;
+    qWarning() << "Failed to load plot image" << m_outputPng;
+  } else {
+    m_imageLabel->setPixmapKeepingAspect(pix);
   }
-  m_imageLabel->setPixmapKeepingAspect(pix);
+
+  proc->deleteLater();
 }

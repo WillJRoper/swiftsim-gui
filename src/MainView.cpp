@@ -1,3 +1,4 @@
+#include <complex>
 #include <iostream>
 
 #include "CommandLineParser.h"
@@ -49,6 +50,7 @@ MainWindow::MainWindow(SimulationController *simCtrl,
   createTabs(cmdParser);
   createProgressBar();
   createPlots();
+  createVisualisations();
   createActions();
 }
 
@@ -83,13 +85,55 @@ void MainWindow::createActions() {
   QAction *vizTabAct = new QAction(tr("Visualise"), this);
   vizTabAct->setShortcut(QKeySequence(Qt::Key_V));
   vizTabAct->setShortcutContext(Qt::ApplicationShortcut);
-  connect(vizTabAct, &QAction::triggered, this, [this] { switchToTab(2); });
+  connect(vizTabAct, &QAction::triggered, this, [this] { switchToTab(3); });
   addAction(vizTabAct);
   QAction *diagTabAct = new QAction(tr("Diagnostics"), this);
   diagTabAct->setShortcut(QKeySequence(Qt::Key_D));
   diagTabAct->setShortcutContext(Qt::ApplicationShortcut);
-  connect(diagTabAct, &QAction::triggered, this, [this] { switchToTab(3); });
+  connect(diagTabAct, &QAction::triggered, this, [this] { switchToTab(2); });
   addAction(diagTabAct);
+
+  // ─── Switch to dark matter visualisation (1) ────────────────
+  QAction *showDarkMatterViz =
+      new QAction(tr("Dark Matter Visualisation"), this);
+  showDarkMatterViz->setShortcut(QKeySequence(Qt::Key_1));
+  showDarkMatterViz->setShortcutContext(Qt::ApplicationShortcut);
+  connect(showDarkMatterViz, &QAction::triggered, this, [this] {
+    m_tabs->setCurrentIndex(3);
+    m_vizTab->setDatasetKey("dark_matter");
+  });
+  addAction(showDarkMatterViz);
+
+  // ─── Switch to gas visualisation (2) ────────────────────────
+  QAction *showGasViz = new QAction(tr("Gas Visualisation"), this);
+  showGasViz->setShortcut(QKeySequence(Qt::Key_2));
+  showGasViz->setShortcutContext(Qt::ApplicationShortcut);
+  connect(showGasViz, &QAction::triggered, this, [this] {
+    m_tabs->setCurrentIndex(3);
+    m_vizTab->setDatasetKey("gas");
+  });
+  addAction(showGasViz);
+
+  // ─── Switch to stars visualisation (3) ──────────────────────
+  QAction *showStarsViz = new QAction(tr("Stars Visualisation"), this);
+  showStarsViz->setShortcut(QKeySequence(Qt::Key_3));
+  showStarsViz->setShortcutContext(Qt::ApplicationShortcut);
+  connect(showStarsViz, &QAction::triggered, this, [this] {
+    m_tabs->setCurrentIndex(3);
+    m_vizTab->setDatasetKey("stars");
+  });
+  addAction(showStarsViz);
+
+  // ─── Switch to gas temperature visualisation (4) ─────────────
+  QAction *showGasTempViz =
+      new QAction(tr("Gas Temperature Visualisation"), this);
+  showGasTempViz->setShortcut(QKeySequence(Qt::Key_4));
+  showGasTempViz->setShortcutContext(Qt::ApplicationShortcut);
+  connect(showGasTempViz, &QAction::triggered, this, [this] {
+    m_tabs->setCurrentIndex(3);
+    m_vizTab->setDatasetKey("gas_temperature");
+  });
+  addAction(showGasTempViz);
 
   // ─── Dashboard view shortcut (0) ─────────────────────────────
   QAction *showDashboard = new QAction(tr("Dashboard"), this);
@@ -133,6 +177,12 @@ void MainWindow::createActions() {
           &PlotWidget::refresh);
   connect(m_dataWatcher, &DataWatcher::stepChanged, m_particlePlot,
           &PlotWidget::refresh);
+
+  // ─── Update the top box top widget on a Timer ─────────────────────
+  m_topRotateTimer = new QTimer(this);
+  m_topRotateTimer->setInterval(10000);
+  connect(m_topRotateTimer, &QTimer::timeout, this, &MainWindow::rotateTopPage);
+  m_topRotateTimer->start();
 }
 
 /**
@@ -192,7 +242,6 @@ void MainWindow::createTabs(CommandLineParser *cmdParser) {
   m_tabs->addTab(new HomeTabWidget, tr("Home"));
   m_logTab = new LogTabWidget(cmdParser->logFilePath(), this);
   m_tabs->addTab(m_logTab, tr("Log"));
-  m_tabs->addTab(new VizTabWidget(m_simCtrl), tr("Visualise"));
   m_tabs->addTab(new DiagTabWidget, tr("Diagnostics"));
 }
 
@@ -273,6 +322,27 @@ void MainWindow::updateCurrentTimeLabel(double t) {
   QString txt = QString("%1").arg(t, m_currentLabelWidth, 'e',
                                   m_currentLabelPrecision, QChar(' '));
   m_currentLabel->setText(txt);
+}
+
+void MainWindow::createVisualisations() {
+  // First make the visualisation tab widget
+  m_vizTab = new VizTabWidget();
+  m_tabs->addTab(m_vizTab, tr("Visualise"));
+  QString imagesDir = m_simCtrl->simulationDirectory() + "/images";
+
+  // Start watching the images directory
+  m_vizTab->watchImageDirectory(imagesDir);
+}
+
+void MainWindow::rotateTopPage() {
+  if (!m_topStack)
+    return;
+  int count = m_topStack->count();
+  if (count < 2)
+    return;
+
+  int next = (m_topStack->currentIndex() + 1) % count;
+  m_topStack->setCurrentIndex(next);
 }
 
 void MainWindow::updateStepCounter(int step) { m_stepCounter->setStep(step); }

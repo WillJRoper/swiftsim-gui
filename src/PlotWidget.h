@@ -16,6 +16,10 @@ public:
   /** Re-run the Python script and update the display. */
   void refresh(int step);
 
+private slots:
+  /// Slot for asynchronous plot process completion.
+  void onPlotProcessFinished(int exitCode, QProcess::ExitStatus status);
+
 private:
   QString m_scriptPath;
   QString m_csvPath;

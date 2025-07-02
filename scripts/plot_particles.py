@@ -3,7 +3,7 @@ import sys
 import matplotlib.pyplot as plt
 import pandas as pd
 
-plt.rcParams["font.family"] = "DejaVu Sans Mono"
+plt.rcParams["font.family"] = "Eurostile Extended"
 
 HAL_RED = (229 / 255, 0, 0)
 LINESTYLES = ["-", "--", "-.", ":"]
