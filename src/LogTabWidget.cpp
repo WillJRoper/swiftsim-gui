@@ -1,6 +1,8 @@
 #include "LogTabWidget.h"
 #include <QApplication>
 #include <QFile>
+#include <QPaintEvent>
+#include <QPainter>
 #include <QPlainTextEdit>
 #include <QScrollBar>
 #include <QTextStream>
@@ -9,11 +11,14 @@
 LogTabWidget::LogTabWidget(const QString &filePath, QWidget *parent)
     : QWidget(parent), m_textEdit(new QPlainTextEdit(this)),
       m_watcher(new QFileSystemWatcher(this)), m_filePath(filePath),
-      m_font(QApplication::font()), m_reloadTimer(new QTimer(this)) {
+      m_font(QApplication::font()), m_reloadTimer(new QTimer(this)),
+      m_background(":/images/cluster_bkg.png") {
   // Configure text edit
   m_textEdit->setReadOnly(true);
   m_textEdit->setObjectName("logEditor");
   m_textEdit->setFont(m_font);
+  m_textEdit->setAttribute(Qt::WA_TranslucentBackground);
+  m_textEdit->viewport()->setAttribute(Qt::WA_TranslucentBackground);
 
   // Layout
   auto *layout = new QVBoxLayout(this);
@@ -94,4 +99,19 @@ void LogTabWidget::updateLogView() {
   if (atBottom) {
     sb->setValue(sb->maximum());
   }
+}
+
+void LogTabWidget::paintEvent(QPaintEvent *evt) {
+  QPainter p(this);
+
+  // 1) draw your background image to fill the whole widget
+  p.drawPixmap(rect(), m_background);
+
+  // 2) draw a semi-transparent black rect exactly where the textedit sits
+  QRect editRect = m_textEdit->geometry();
+  QColor overlayColor(0, 0, 0, 150); // alpha = 120/255 ~47%
+  p.fillRect(editRect, overlayColor);
+
+  // 3) now paint children (including your transparent textedit on top)
+  QWidget::paintEvent(evt);
 }

@@ -28,6 +28,9 @@ private slots:
   // Reloads new data into the text edit.
   void updateLogView();
 
+protected:
+  void paintEvent(QPaintEvent *event) override;
+
 private:
   QPlainTextEdit *m_textEdit;    // Read-only display area.
   QFileSystemWatcher *m_watcher; // Watches the file for updates.
@@ -36,4 +39,5 @@ private:
 
   QTimer *m_reloadTimer;     // Single-shot debounce timer
   qint64 m_lastPosition = 0; // Last read position in file
+  QPixmap m_background;
 };

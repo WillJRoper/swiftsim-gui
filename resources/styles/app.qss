@@ -157,6 +157,7 @@ StepCounterWidget QLabel {
 QPlainTextEdit#logEditor {
   font-family: "Hack Nerd Font Mono", monospace;
   font-size: 9pt;
+  color: #eaeaea;
 }
 
 QLabel#vizTitleLabel {
@@ -169,4 +170,9 @@ QLabel#vizTitleLabel {
     background: transparent;       /* or rgba(0,0,0,128) for semi-opaque */
     letter-spacing: 2px;           /* spaced-out, futuristic vibe */
     text-transform: uppercase;     /* all-caps, classic sci-fi look */
+}
+
+/* Style the inner viewport to get a semi-transparent black background */
+QPlainTextEdit#logEditor QWidget {
+  background-color: rgba(0, 0, 0, 120);    /* black @ ~47% opacity */
 }
