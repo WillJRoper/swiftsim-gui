@@ -3,6 +3,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfoList>
+#include <QGraphicsOpacityEffect>
 #include <QKeyEvent>
 #include <QMetaObject>
 #include <QRegularExpression>
@@ -202,28 +203,60 @@ void RotationFrameLoader::loadNextFrame() {
 /**************************************************************************************************/
 VizTabWidget::VizTabWidget(QWidget *parent)
     : QWidget(parent), m_imageLabel(new ScaledPixmapLabel(this)),
-      m_overlayLabel(new QLabel(this)), m_logoLabel(new QLabel(this)),
+      m_logoLabel(new QLabel(this)), m_flamingoLabel(new QLabel(this)),
+      m_esaLabel(new QLabel(this)), m_sussexLabel(new QLabel(this)),
       m_loader(new RotationFrameLoader), m_loaderThread(new QThread(this)) {
+  // --- Title label ---
+  m_titleLabel = new QLabel(tr("Dark Matter"), this);
+  m_titleLabel->setObjectName("vizTitleLabel");
+  m_titleLabel->setAlignment(Qt::AlignCenter);
+  m_titleLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+
   // Layout
   auto *lay = new QVBoxLayout(this);
   lay->setContentsMargins(0, 0, 0, 0);
-  lay->addWidget(m_imageLabel);
-  setLayout(lay);
 
-  // overlay
-  m_overlayLabel->setStyleSheet(
-      "QLabel { background: rgba(0,0,0,128); color: white; "
-      "padding:4px; border-radius:3px; font:10pt 'Arial'; }");
-  m_overlayLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
-  m_overlayLabel->move(10, 10);
-  m_overlayLabel->show();
+  // Put the title on top with no stretch
+  lay->addWidget(m_titleLabel, /*stretch=*/0);
 
-  // logo
+  // Then the image expands to fill
+  lay->addWidget(m_imageLabel, /*stretch=*/1);
+
+  // --- bottom-right SWIFT logo ---
   m_logoOrig = QPixmap(":/images/swift-logo-white.png");
-  Q_ASSERT(!m_logoOrig.isNull());
   m_logoLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
   m_logoLabel->setStyleSheet("background:transparent;");
   m_logoLabel->show();
+  auto *swiftOpacity = new QGraphicsOpacityEffect(this);
+  swiftOpacity->setOpacity(0.75);
+  m_logoLabel->setGraphicsEffect(swiftOpacity);
+
+  // --- top-left Flamingo logo ---
+  m_flamingoOrig = QPixmap(":/images/flamingo-logo.png");
+  m_flamingoLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+  m_flamingoLabel->setStyleSheet("background:transparent;");
+  m_flamingoLabel->show();
+  auto *flamingoOpacity = new QGraphicsOpacityEffect(this);
+  flamingoOpacity->setOpacity(0.75);
+  m_flamingoLabel->setGraphicsEffect(flamingoOpacity);
+
+  // --- bottom-left Sussex logo ---
+  m_sussexOrig = QPixmap(":/images/sussex-logo.png");
+  m_sussexLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+  m_sussexLabel->setStyleSheet("background:transparent;");
+  m_sussexLabel->show();
+  auto *sussexOpacity = new QGraphicsOpacityEffect(this);
+  sussexOpacity->setOpacity(0.75);
+  m_sussexLabel->setGraphicsEffect(sussexOpacity);
+
+  // --- top-right ESA logo ---
+  m_esaOrig = QPixmap(":/images/ESA.png");
+  m_esaLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+  m_esaLabel->setStyleSheet("background:transparent;");
+  m_esaLabel->show();
+  auto *esaOpacity = new QGraphicsOpacityEffect(this);
+  esaOpacity->setOpacity(0.75);
+  m_esaLabel->setGraphicsEffect(esaOpacity);
 
   // directory watcher
   connect(&m_dirWatcher, &QFileSystemWatcher::directoryChanged, this,
@@ -289,17 +322,22 @@ void VizTabWidget::setDatasetKey(const QString &key) {
   if (key == m_currentDatasetKey)
     return;
   m_currentDatasetKey = key;
-  // choose colormap immediately for overlay consistency
-  if (key == "dark_matter")
+  if (key == "dark_matter") {
     m_colormap = Colormap::Plasma;
-  else if (key == "gas")
+    setTitle(tr("Dark Matter"));
+  } else if (key == "gas") {
     m_colormap = Colormap::Magma;
-  else if (key == "stars")
+    setTitle(tr("Gas"));
+  } else if (key == "stars") {
     m_colormap = Colormap::Greyscale;
-  else if (key == "gas_temperature")
+    setTitle(tr("Stars"));
+  } else if (key == "gas_temperature") {
     m_colormap = Colormap::Inferno;
-  else
-    m_colormap = Colormap::Greyscale;
+    setTitle(tr("Temperature"));
+  } else {
+    m_colormap = Colormap::Viridis;
+    setTitle(tr("Unknown Dataset"));
+  }
 
   // restart loader with new dataset
   if (m_currentFileNumber >= 0) {
@@ -346,34 +384,73 @@ void VizTabWidget::handleFrameReady(const QImage &img, int fileNumber,
                                     int frameIndex, int totalFrames) {
   // paint
   m_imageLabel->setPixmapKeepingAspect(QPixmap::fromImage(img));
-  // overlay
-  m_overlayLabel->setText(QString("File %1/%2  Rot %3/%4  [%5]")
-                              .arg(fileNumber)
-                              .arg(m_latestFileNumber)
-                              .arg(frameIndex)
-                              .arg(totalFrames)
-                              .arg(m_currentDatasetKey));
-  m_overlayLabel->adjustSize();
-  m_overlayLabel->raise();
 }
 
+// In VizTabWidget.cpp
 void VizTabWidget::resizeEvent(QResizeEvent *ev) {
   QWidget::resizeEvent(ev);
-  // overlay position
-  m_overlayLabel->move(10, 10);
-  // logo watermark (~20% height, bottom-right)
-  const int margin = 10;
-  int maxH = height() * 20 / 100;
-  QSize tgt(maxH * m_logoOrig.width() / m_logoOrig.height(), maxH);
-  QPixmap scaled =
-      m_logoOrig.scaled(tgt, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-  m_logoLabel->setPixmap(scaled);
-  m_logoLabel->setFixedSize(scaled.size());
-  m_logoLabel->move(width() - scaled.width() - margin,
-                    height() - scaled.height() - margin);
-  m_logoLabel->raise();
+
+  // --- bottom-right Swift logo (~15% height) ---
+  {
+    int maxH = height() * m_swiftSizePercent / 100;
+    QSize tgt(maxH * m_logoOrig.width() / m_logoOrig.height(), maxH);
+    QPixmap scaled =
+        m_logoOrig.scaled(tgt, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    m_logoLabel->setPixmap(scaled);
+    m_logoLabel->setFixedSize(scaled.size());
+    int x = width() - scaled.width() - m_swiftXMargin;
+    int y = height() - scaled.height() - m_swiftYMargin;
+    m_logoLabel->move(x, y);
+    m_logoLabel->raise();
+  }
+
+  // --- top-left Flamingo logo (~20% height) ---
+  {
+    int maxH = height() * m_flamingoSizePercent / 100;
+    QSize tgt(maxH * m_flamingoOrig.width() / m_flamingoOrig.height(), maxH);
+    QPixmap scaled = m_flamingoOrig.scaled(tgt, Qt::KeepAspectRatio,
+                                           Qt::SmoothTransformation);
+    m_flamingoLabel->setPixmap(scaled);
+    m_flamingoLabel->setFixedSize(scaled.size());
+    int x = m_flamingoXMargin;
+    int y = m_flamingoYMargin;
+    m_flamingoLabel->move(x, y);
+    m_flamingoLabel->raise();
+  }
+
+  // --- bottom-left Sussex logo (~10% height) ---
+  {
+    int maxH = height() * m_sussexSizePercent / 100;
+    QSize tgt(maxH * m_sussexOrig.width() / m_sussexOrig.height(), maxH);
+    QPixmap scaled =
+        m_sussexOrig.scaled(tgt, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    m_sussexLabel->setPixmap(scaled);
+    m_sussexLabel->setFixedSize(scaled.size());
+    int x = m_sussexXMargin;
+    int y = height() - scaled.height() - m_sussexYMargin;
+    m_sussexLabel->move(x, y);
+    m_sussexLabel->raise();
+  }
+
+  // --- top-right ESA logo (~15% height) ---
+  {
+    int maxH = height() * m_esaSizePercent / 100;
+    QSize tgt(maxH * m_esaOrig.width() / m_esaOrig.height(), maxH);
+    QPixmap scaled =
+        m_esaOrig.scaled(tgt, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    m_esaLabel->setPixmap(scaled);
+    m_esaLabel->setFixedSize(scaled.size());
+    int x = width() - scaled.width() - m_esaXMargin;
+    int y = m_esaYMargin;
+    m_esaLabel->move(x, y);
+    m_esaLabel->raise();
+  }
 }
 
 void VizTabWidget::onImageDirectoryChanged(const QString &) {
   scanImageDirectory();
+}
+
+void VizTabWidget::setTitle(const QString &text) {
+  m_titleLabel->setText(text);
 }

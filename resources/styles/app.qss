@@ -158,3 +158,15 @@ QPlainTextEdit#logEditor {
   font-family: "Hack Nerd Font Mono", monospace;
   font-size: 9pt;
 }
+
+QLabel#vizTitleLabel {
+    /* control size */
+    font-size: 60pt;               /* tweak until you like it */
+    padding: 4px 8px;              /* a little breathing space around text */
+
+    /* 2001: A Space Odyssey feel */
+    color: rgba(255, 255, 255, 210); 
+    background: transparent;       /* or rgba(0,0,0,128) for semi-opaque */
+    letter-spacing: 2px;           /* spaced-out, futuristic vibe */
+    text-transform: uppercase;     /* all-caps, classic sci-fi look */
+}

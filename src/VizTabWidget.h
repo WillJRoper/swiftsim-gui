@@ -58,6 +58,9 @@ public:
   explicit VizTabWidget(QWidget *parent = nullptr);
   ~VizTabWidget();
 
+  /// Set the title of the visualization tab
+  void setTitle(const QString &title);
+
 public slots:
   /// Watch a directory of files named ".../image_<N>.hdf5"
   void watchImageDirectory(const QString &directory);
@@ -93,10 +96,30 @@ private:
   void scanImageDirectory();
 
   ScaledPixmapLabel *m_imageLabel;
-  QLabel *m_overlayLabel;
   QLabel *m_logoLabel;
   QPixmap m_logoOrig;
+  QLabel *m_flamingoLabel;
+  QPixmap m_flamingoOrig;
+  QLabel *m_sussexLabel;
+  QPixmap m_sussexOrig;
+  QLabel *m_esaLabel;
+  QPixmap m_esaOrig;
+  QLabel *m_titleLabel;
   QFileSystemWatcher m_dirWatcher;
+
+  // Logo offsets for centering
+  int m_swiftXMargin = 15;
+  int m_swiftYMargin = 15;
+  int m_flamingoXMargin = 10;
+  int m_flamingoYMargin = 10;
+  int m_sussexXMargin = 15;
+  int m_sussexYMargin = 15;
+  int m_esaXMargin = 15;
+  int m_esaYMargin = 15;
+  double m_swiftSizePercent = 7;
+  double m_flamingoSizePercent = 12;
+  double m_sussexSizePercent = 7.5;
+  double m_esaSizePercent = 6;
 
   // loader + thread
   RotationFrameLoader *m_loader;

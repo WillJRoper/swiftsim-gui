@@ -39,7 +39,7 @@ MainWindow::MainWindow(SimulationController *simCtrl,
 
   // Set up each of the UI elements
   createSplitterAndLayouts();
-  createTabs(cmdParser);
+  createsBottom(cmdParser);
   createProgressBar();
   createPlots();
   createDataWatcher();
@@ -90,8 +90,8 @@ void MainWindow::createActions() {
   showDarkMatterViz->setShortcut(QKeySequence(Qt::Key_1));
   showDarkMatterViz->setShortcutContext(Qt::ApplicationShortcut);
   connect(showDarkMatterViz, &QAction::triggered, this, [this] {
-    m_tabs->setCurrentIndex(3);
     m_vizTab->setDatasetKey("dark_matter");
+    m_bottomWidget->setCurrentIndex(2);
   });
   addAction(showDarkMatterViz);
 
@@ -100,8 +100,8 @@ void MainWindow::createActions() {
   showGasViz->setShortcut(QKeySequence(Qt::Key_2));
   showGasViz->setShortcutContext(Qt::ApplicationShortcut);
   connect(showGasViz, &QAction::triggered, this, [this] {
-    m_tabs->setCurrentIndex(3);
     m_vizTab->setDatasetKey("gas");
+    m_bottomWidget->setCurrentIndex(2);
   });
   addAction(showGasViz);
 
@@ -110,8 +110,8 @@ void MainWindow::createActions() {
   showStarsViz->setShortcut(QKeySequence(Qt::Key_3));
   showStarsViz->setShortcutContext(Qt::ApplicationShortcut);
   connect(showStarsViz, &QAction::triggered, this, [this] {
-    m_tabs->setCurrentIndex(3);
     m_vizTab->setDatasetKey("stars");
+    m_bottomWidget->setCurrentIndex(2);
   });
   addAction(showStarsViz);
 
@@ -121,8 +121,8 @@ void MainWindow::createActions() {
   showGasTempViz->setShortcut(QKeySequence(Qt::Key_4));
   showGasTempViz->setShortcutContext(Qt::ApplicationShortcut);
   connect(showGasTempViz, &QAction::triggered, this, [this] {
-    m_tabs->setCurrentIndex(3);
     m_vizTab->setDatasetKey("gas_temperature");
+    m_bottomWidget->setCurrentIndex(2);
   });
   addAction(showGasTempViz);
 
@@ -226,10 +226,10 @@ void MainWindow::createSplitterAndLayouts() {
   m_middleGap->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
   m_splitter->addWidget(m_middleGap);
 
-  // ─── Bottom: tab widget ─────────────────────────────────────
-  m_tabs = new QTabWidget(this);
-  m_tabs->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
-  m_splitter->addWidget(m_tabs);
+  // ─── Bottom: stacked widget ─────────────────────────────────
+  m_bottomWidget = new QStackedWidget(this);
+  m_bottomWidget->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+  m_splitter->addWidget(m_bottomWidget);
 
   // Set initial splitter sizes (approx. 27% / 25% / 48%)
   int totalH = height();
@@ -241,14 +241,10 @@ void MainWindow::createSplitterAndLayouts() {
   setCentralWidget(m_splitter);
 }
 
-void MainWindow::createTabs(CommandLineParser *cmdParser) {
-  // Create the tab widget and its pages
-  m_tabs->tabBar()->setExpanding(false);
-  m_tabs->setDocumentMode(true);
-
-  m_tabs->addTab(new HomeTabWidget, tr("Home"));
+void MainWindow::createsBottom(CommandLineParser *cmdParser) {
+  m_bottomWidget->addWidget(new HomeTabWidget);
   m_logTab = new LogTabWidget(cmdParser->logFilePath(), this);
-  m_tabs->addTab(m_logTab, tr("Log"));
+  m_bottomWidget->addWidget(m_logTab);
 }
 
 /**
@@ -337,7 +333,7 @@ void MainWindow::updateCurrentTimeLabel(double t) {
 
 void MainWindow::createVisualisations() {
   m_vizTab = new VizTabWidget(this);
-  m_tabs->addTab(m_vizTab, tr("Visualise"));
+  m_bottomWidget->addWidget(m_vizTab);
   QString imagesDir = m_simCtrl->simulationDirectory() + "/images";
   m_vizTab->watchImageDirectory(imagesDir);
 }
@@ -434,7 +430,7 @@ void MainWindow::changeLogFontSize() {
 }
 
 void MainWindow::switchToTab(int index) {
-  if (index >= 0 && index < m_tabs->count()) {
-    m_tabs->setCurrentIndex(index);
+  if (index >= 0 && index < m_bottomWidget->count()) {
+    m_bottomWidget->setCurrentIndex(index);
   }
 }

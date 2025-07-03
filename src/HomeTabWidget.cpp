@@ -42,7 +42,7 @@ void HomeTabWidget::paintEvent(QPaintEvent *event) {
   }
 
   // draw a semi-transparent black overlay
-  constexpr int overlayAlpha = 80; // tweak 0–255
+  constexpr int overlayAlpha = 150; // tweak 0–255
   p.fillRect(rect(), QColor(0, 0, 0, overlayAlpha));
 
   // now paint child widgets

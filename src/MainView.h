@@ -38,7 +38,7 @@ private:
   // setup routines
   void createSplitterAndLayouts();
   void createActions();
-  void createTabs(CommandLineParser *cmdParser);
+  void createsBottom(CommandLineParser *cmdParser);
   void createProgressBar();
   void createPlots();
   void createVisualisations();
@@ -55,7 +55,7 @@ private:
   DataWatcher *m_dataWatcher = nullptr;
   QThread *m_dwThread = nullptr;
   LogTabWidget *m_logTab;
-  QTabWidget *m_tabs;
+  QStackedWidget *m_bottomWidget;
 
   // NEW: sections for splitter layout
   QStackedWidget *m_topStack = nullptr;
