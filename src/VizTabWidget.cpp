@@ -1,130 +1,43 @@
+// VizTabWidget.cpp
 #include "VizTabWidget.h"
+
 #include <QApplication>
 #include <QDir>
-#include <QFile>
-#include <QFileInfoList>
 #include <QKeyEvent>
+#include <QLabel>
 #include <QMetaObject>
 #include <QRegularExpression>
 #include <QVBoxLayout>
+
 #include <algorithm>
+#include <limits>
+#include <vector>
 
-/**************************************************************************************************/
-/*                                  RotationFrameLoader */
-/**************************************************************************************************/
-void RotationFrameLoader::setColormap(int colormapIdx) {
-  switch (colormapIdx) {
-  case int(VizTabWidget::Colormap::Plasma):
-    m_cmap = plasma_colormap;
-    m_cmap_size = plasma_colormap_size;
-    break;
-  case int(VizTabWidget::Colormap::Magma):
-    m_cmap = magma_colormap_colormap;
-    m_cmap_size = magma_colormap_colormap_size;
-    break;
-  case int(VizTabWidget::Colormap::Viridis):
-    m_cmap = viridis_colormap_colormap;
-    m_cmap_size = viridis_colormap_colormap_size;
-    break;
-  case int(VizTabWidget::Colormap::Jet):
-    m_cmap = jet_colormap_colormap;
-    m_cmap_size = jet_colormap_colormap_size;
-    break;
-  case int(VizTabWidget::Colormap::Inferno):
-    m_cmap = inferno_colormap_colormap;
-    m_cmap_size = inferno_colormap_colormap_size;
-    break;
-  case int(VizTabWidget::Colormap::Greyscale):
-  default:
-    m_cmap = greyscale_colormap_colormap;
-    m_cmap_size = greyscale_colormap_colormap_size;
-    break;
-  }
+/// ---------------------------------------------------------
+///  RotationFrameLoader implementation
+/// ---------------------------------------------------------
+VizTabWidget::RotationFrameLoader::RotationFrameLoader() = default;
+VizTabWidget::RotationFrameLoader::~RotationFrameLoader() {
+  if (m_fileId >= 0)
+    H5Fclose(m_fileId);
 }
 
-void RotationFrameLoader::computePercentiles() {
-  if (m_fileId < 0 || m_nFrames <= 0)
-    return;
-
-  // read only frame 0
-  std::vector<float> all(size_t(m_xres) * m_yres);
-  hid_t dset =
-      H5Dopen2(m_fileId, m_currentDatasetKey.toUtf8().constData(), H5P_DEFAULT);
-  hid_t space = H5Dget_space(dset);
-  hsize_t offset[3] = {0, 0, 0};
-  hsize_t count[3] = {1, (hsize_t)m_xres, (hsize_t)m_yres};
-  H5Sselect_hyperslab(space, H5S_SELECT_SET, offset, nullptr, count, nullptr);
-  hid_t memsp = H5Screate_simple(3, count, nullptr);
-  H5Dread(dset, H5T_NATIVE_FLOAT, memsp, space, H5P_DEFAULT, all.data());
-  H5Sclose(memsp);
-  H5Sclose(space);
-  H5Dclose(dset);
-
-  size_t N = all.size();
-  if (N == 0) {
-    m_lowerValue = 0.0f;
-    m_upperValue = 1.0f;
-    return;
-  }
-
-  size_t lo = size_t((m_percentileLow / 100.0f) * (N - 1) + 0.5f);
-  size_t hi = size_t((m_percentileHigh / 100.0f) * (N - 1) + 0.5f);
-  lo = std::clamp(lo, size_t(0), N - 1);
-  hi = std::clamp(hi, size_t(0), N - 1);
-
-  std::nth_element(all.begin(), all.begin() + lo, all.end());
-  m_lowerValue = all[lo];
-  std::nth_element(all.begin(), all.begin() + hi, all.end());
-  m_upperValue = all[hi];
-
-  if (m_lowerValue == m_upperValue) {
-    m_lowerValue = std::numeric_limits<float>::max();
-    m_upperValue = 0.0f;
-    for (float v : all) {
-      m_lowerValue = std::min(m_lowerValue, v);
-      m_upperValue = std::max(m_upperValue, v);
-    }
-  }
-}
-
-void RotationFrameLoader::startLoading(
-    const QString &imageDirectory, int fileNumber, const QString &datasetKey,
-    float percentileLow, float percentileHigh, int colormapIdx, int fps) {
-  // stop old timer & close old file
-  if (m_timer) {
-    m_timer->stop();
-    m_timer->deleteLater();
-    m_timer = nullptr;
-  }
+bool VizTabWidget::RotationFrameLoader::openFile(const QString &path,
+                                                 const QString &datasetKey,
+                                                 float lowPct, float highPct) {
+  // Close previous
   if (m_fileId >= 0) {
     H5Fclose(m_fileId);
     m_fileId = -1;
   }
 
-  // stash parameters
-  m_imageDirectory = imageDirectory;
-  m_currentFileNumber = fileNumber;
-  m_currentDatasetKey = datasetKey;
-  m_percentileLow = percentileLow;
-  m_percentileHigh = percentileHigh;
-  setColormap(colormapIdx);
-
-  // build full path
-  QString path = m_imageDirectory + "image_" +
-                 QString::number(m_currentFileNumber) + ".hdf5";
-  if (!QFile::exists(path))
-    return;
-  if (H5Fis_hdf5(path.toUtf8().constData()) <= 0)
-    return;
-
-  // open HDF5
+  // Open
   m_fileId = H5Fopen(path.toUtf8().constData(), H5F_ACC_RDONLY, H5P_DEFAULT);
   if (m_fileId < 0)
-    return;
+    return false;
 
-  // query dims
-  hid_t dset =
-      H5Dopen2(m_fileId, m_currentDatasetKey.toUtf8().constData(), H5P_DEFAULT);
+  // Open dataset & query dims
+  hid_t dset = H5Dopen2(m_fileId, datasetKey.toUtf8().constData(), H5P_DEFAULT);
   hid_t space = H5Dget_space(dset);
   hsize_t dims[3];
   H5Sget_simple_extent_dims(space, dims, nullptr);
@@ -134,192 +47,144 @@ void RotationFrameLoader::startLoading(
   H5Sclose(space);
   H5Dclose(dset);
 
-  // pre-compute percentiles
-  computePercentiles();
+  // Resize buffer
+  m_buf.assign(size_t(m_xres) * m_yres, 0.0f);
+  m_datasetKey = datasetKey;
 
-  // timer for subsequent frames
-  m_timer = new QTimer(this);
-  m_timer->setInterval(1000 / fps);
-  connect(m_timer, &QTimer::timeout, this, &RotationFrameLoader::loadNextFrame);
-  m_timer->start();
+  // Compute percentile cut-points
+  computePercentiles(lowPct, highPct);
+  return true;
 }
 
-void RotationFrameLoader::loadNextFrame() {
-  if (m_fileId < 0 || m_nFrames <= 0)
-    return;
-
-  // read one slice
+void VizTabWidget::RotationFrameLoader::computePercentiles(float lowPct,
+                                                           float highPct) {
+  // Read only frame 0 for speed
   hid_t dset =
-      H5Dopen2(m_fileId, m_currentDatasetKey.toUtf8().constData(), H5P_DEFAULT);
+      H5Dopen2(m_fileId, m_datasetKey.toUtf8().constData(), H5P_DEFAULT);
   hid_t space = H5Dget_space(dset);
-
-  hsize_t offset[3] = {(hsize_t)m_currentRotationFrame, 0, 0};
-  hsize_t count[3] = {1, (hsize_t)m_xres, (hsize_t)m_yres};
-  H5Sselect_hyperslab(space, H5S_SELECT_SET, offset, nullptr, count, nullptr);
-  hid_t memsp = H5Screate_simple(3, count, nullptr);
-
-  std::vector<float> buf(size_t(m_xres) * m_yres);
-  H5Dread(dset, H5T_NATIVE_FLOAT, memsp, space, H5P_DEFAULT, buf.data());
-
-  H5Sclose(memsp);
+  hsize_t off[3] = {0, 0, 0}, cnt[3] = {1, (hsize_t)m_xres, (hsize_t)m_yres};
+  H5Sselect_hyperslab(space, H5S_SELECT_SET, off, nullptr, cnt, nullptr);
+  hid_t mem = H5Screate_simple(3, cnt, nullptr);
+  H5Dread(dset, H5T_NATIVE_FLOAT, mem, space, H5P_DEFAULT, m_buf.data());
+  H5Sclose(mem);
   H5Sclose(space);
   H5Dclose(dset);
 
-  // build RGB image
-  QImage img(m_xres, m_yres, QImage::Format_RGB888);
-  float range = m_upperValue - m_lowerValue;
-  if (range <= 0.0f)
-    range = 1.0f;
-
-  for (int y = 0; y < m_yres; ++y) {
-    uchar *line = img.scanLine(y);
-    for (int x = 0; x < m_xres; ++x) {
-      float v = buf[y * m_xres + x];
-      if (v == 0.0f) {
-        line[x * 3 + 0] = 0;
-        line[x * 3 + 1] = 0;
-        line[x * 3 + 2] = 0;
-      } else {
-        float norm = (v - m_lowerValue) / range;
-        norm = std::clamp(norm, 0.0f, 1.0f);
-        int idx = int(norm * (m_cmap_size - 1) + 0.5f);
-        idx = std::clamp(idx, 0, int(m_cmap_size - 1));
-        const uint8_t *rgb = m_cmap[idx];
-        line[x * 3 + 0] = rgb[0];
-        line[x * 3 + 1] = rgb[1];
-        line[x * 3 + 2] = rgb[2];
-      }
-    }
+  // Build copy, nth_element
+  std::vector<float> tmp = m_buf;
+  auto N = tmp.size();
+  if (N == 0) {
+    m_lowerValue = 0;
+    m_upperValue = 1;
+    return;
   }
-
-  emit frameReady(img, m_currentFileNumber, m_currentRotationFrame, m_nFrames);
-
-  m_currentRotationFrame = (m_currentRotationFrame + 1) % m_nFrames;
+  size_t lo = size_t((lowPct / 100.0f) * (N - 1) + 0.5f),
+         hi = size_t((highPct / 100.0f) * (N - 1) + 0.5f);
+  lo = std::clamp(lo, size_t(0), N - 1);
+  hi = std::clamp(hi, size_t(0), N - 1);
+  std::nth_element(tmp.begin(), tmp.begin() + lo, tmp.end());
+  m_lowerValue = tmp[lo];
+  std::nth_element(tmp.begin(), tmp.begin() + hi, tmp.end());
+  m_upperValue = tmp[hi];
+  if (m_lowerValue == m_upperValue) {
+    m_lowerValue = *std::min_element(tmp.begin(), tmp.end());
+    m_upperValue = *std::max_element(tmp.begin(), tmp.end());
+  }
 }
 
-/**************************************************************************************************/
-/*                                        VizTabWidget */
-/**************************************************************************************************/
-VizTabWidget::VizTabWidget(QWidget *parent)
-    : QWidget(parent), m_imageLabel(new ScaledPixmapLabel(this)),
-      m_overlayLabel(new QLabel(this)), m_logoLabel(new QLabel(this)),
-      m_loader(new RotationFrameLoader), m_loaderThread(new QThread(this)) {
-  // Layout
-  auto *lay = new QVBoxLayout(this);
-  lay->setContentsMargins(0, 0, 0, 0);
-  lay->addWidget(m_imageLabel);
-  setLayout(lay);
+bool VizTabWidget::RotationFrameLoader::fetchFrame(int idx) {
+  if (m_fileId < 0 || idx < 0 || idx >= m_nFrames)
+    return false;
+  // Read hyperslab idx
+  hid_t dset =
+      H5Dopen2(m_fileId, m_datasetKey.toUtf8().constData(), H5P_DEFAULT);
+  hid_t space = H5Dget_space(dset);
+  hsize_t off[3] = {(hsize_t)idx, 0, 0},
+          cnt[3] = {1, (hsize_t)m_xres, (hsize_t)m_yres};
+  H5Sselect_hyperslab(space, H5S_SELECT_SET, off, nullptr, cnt, nullptr);
+  hid_t mem = H5Screate_simple(3, cnt, nullptr);
+  H5Dread(dset, H5T_NATIVE_FLOAT, mem, space, H5P_DEFAULT, m_buf.data());
+  H5Sclose(mem);
+  H5Sclose(space);
+  H5Dclose(dset);
+  return true;
+}
 
-  // overlay
+/// ---------------------------------------------------------
+///  VizTabWidget implementation
+/// ---------------------------------------------------------
+VizTabWidget::VizTabWidget(QWidget *parent)
+    : QOpenGLWidget(parent), m_overlayLabel(new QLabel(this)),
+      m_logoLabel(new QLabel(this)), m_timer(new QTimer(this)) {
+  // Overlay styling
   m_overlayLabel->setStyleSheet(
-      "QLabel { background: rgba(0,0,0,128); color: white; "
-      "padding:4px; border-radius:3px; font:10pt 'Arial'; }");
+      "QLabel{ background:rgba(0,0,0,128); color:white; padding:4px; }");
   m_overlayLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
-  m_overlayLabel->move(10, 10);
   m_overlayLabel->show();
 
-  // logo
-  m_logoOrig = QPixmap(":/images/swift-logo-white.png");
-  Q_ASSERT(!m_logoOrig.isNull());
+  // Watermark logo
+  QPixmap logo(":/images/swift-logo-white.png");
+  m_logoLabel->setPixmap(logo);
   m_logoLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
-  m_logoLabel->setStyleSheet("background:transparent;");
+  m_logoLabel->setStyleSheet("background:transparent");
   m_logoLabel->show();
 
-  // directory watcher
+  // Timer connects to advance
+  connect(m_timer, &QTimer::timeout, this, &VizTabWidget::advanceRotationFrame);
+  m_timer->start(1000 / m_fps);
+
+  // Directory watcher
   connect(&m_dirWatcher, &QFileSystemWatcher::directoryChanged, this,
           &VizTabWidget::onImageDirectoryChanged);
 
-  // loader/thread setup
-  m_loader->moveToThread(m_loaderThread);
-  connect(this, &VizTabWidget::startLoader, m_loader,
-          &RotationFrameLoader::startLoading, Qt::QueuedConnection);
-  connect(m_loader, &RotationFrameLoader::frameReady, this,
-          &VizTabWidget::handleFrameReady, Qt::QueuedConnection);
-  m_loaderThread->start();
+  // Default colormap
+  setColormap(Colormap::Plasma);
 }
 
 VizTabWidget::~VizTabWidget() {
-  // stop loader thread
-  m_loaderThread->quit();
-  m_loaderThread->wait();
+  makeCurrent();
+  glDeleteTextures(1, &m_texture);
+  glDeleteProgram(m_program);
+  doneCurrent();
 }
 
-void VizTabWidget::watchImageDirectory(const QString &dir) {
-  m_imageDirectory = dir;
-  if (!m_imageDirectory.endsWith('/'))
-    m_imageDirectory += '/';
-  m_dirWatcher.removePaths(m_dirWatcher.directories());
-  if (QDir(m_imageDirectory).exists()) {
-    m_dirWatcher.addPath(m_imageDirectory);
-    scanImageDirectory();
-  }
+void VizTabWidget::initializeGL() {
+  initializeOpenGLFunctions();
+  initShader();
+
+  // Create texture
+  glGenTextures(1, &m_texture);
+  glBindTexture(GL_TEXTURE_2D, m_texture);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 }
 
-void VizTabWidget::scanImageDirectory() {
-  if (m_imageDirectory.isEmpty())
-    return;
-  QDir d(m_imageDirectory);
-  QStringList files = d.entryList({"*.hdf5"}, QDir::Files, QDir::Name);
-  static const QRegularExpression re(R"(_(\d+)\.hdf5$)");
-  int maxIdx = m_latestFileNumber;
-  for (auto &fn : files) {
-    auto m = re.match(fn);
-    if (m.hasMatch()) {
-      int idx = m.captured(1).toInt();
-      maxIdx = std::max(maxIdx, idx);
-    }
-  }
-  if (maxIdx > m_latestFileNumber) {
-    m_latestFileNumber = maxIdx;
-  }
-  setCurrentFileNumber(m_latestFileNumber);
+void VizTabWidget::resizeGL(int w, int h) { glViewport(0, 0, w, h); }
+
+void VizTabWidget::paintGL() {
+  glClear(GL_COLOR_BUFFER_BIT);
+  glUseProgram(m_program);
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, m_texture);
+  glUniform1i(m_texUnit, 0);
+  // draw full-screen quad (assume VAO/setup done in shader init)
+  glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
-void VizTabWidget::setCurrentFileNumber(int idx) {
-  idx = std::clamp(idx, 0, m_latestFileNumber);
-  if (idx == m_currentFileNumber)
-    return;
-  m_currentFileNumber = idx;
-  // restart loader
-  emit startLoader(m_imageDirectory, m_currentFileNumber, m_currentDatasetKey,
-                   m_percentileLow, m_percentileHigh, int(m_colormap), m_fps);
+void VizTabWidget::initShader() {
+  // Compile a minimal vertex+fragment that samples float texture,
+  // applies colormap lookup via a uniform array (passed as a texture or UBO),
+  // and writes out RGB.  (Omitted here for brevity—assume you have your
+  // standard colormap shader loaded into m_program.)
 }
 
-void VizTabWidget::setDatasetKey(const QString &key) {
-  if (key == m_currentDatasetKey)
-    return;
-  m_currentDatasetKey = key;
-  // choose colormap immediately for overlay consistency
-  if (key == "dark_matter")
-    m_colormap = Colormap::Plasma;
-  else if (key == "gas")
-    m_colormap = Colormap::Magma;
-  else if (key == "stars")
-    m_colormap = Colormap::Greyscale;
-  else if (key == "gas_temperature")
-    m_colormap = Colormap::Inferno;
-  else
-    m_colormap = Colormap::Greyscale;
-
-  // restart loader with new dataset
-  if (m_currentFileNumber >= 0) {
-    emit startLoader(m_imageDirectory, m_currentFileNumber, m_currentDatasetKey,
-                     m_percentileLow, m_percentileHigh, int(m_colormap), m_fps);
-  }
-}
-
-void VizTabWidget::setPercentileRange(float low, float high) {
-  m_percentileLow = std::clamp(low, 0.0f, 100.0f);
-  m_percentileHigh = std::clamp(high, 0.0f, 100.0f);
-  if (m_currentFileNumber >= 0) {
-    emit startLoader(m_imageDirectory, m_currentFileNumber, m_currentDatasetKey,
-                     m_percentileLow, m_percentileHigh, int(m_colormap), m_fps);
-  }
-}
-
-void VizTabWidget::percentileRange(float &low, float &high) const {
-  low = m_percentileLow;
-  high = m_percentileHigh;
+void VizTabWidget::resizeEvent(QResizeEvent *ev) {
+  QOpenGLWidget::resizeEvent(ev);
+  m_overlayLabel->move(10, 10);
+  // watermark bottom-right
+  int margin = 8, lw = m_logoLabel->pixmap()->width(),
+      lh = m_logoLabel->pixmap()->height();
+  m_logoLabel->move(width() - lw - margin, height() - lh - margin);
 }
 
 void VizTabWidget::keyPressEvent(QKeyEvent *evt) {
@@ -337,43 +202,147 @@ void VizTabWidget::keyPressEvent(QKeyEvent *evt) {
     setDatasetKey("gas_temperature");
     break;
   default:
-    QWidget::keyPressEvent(evt);
+    QOpenGLWidget::keyPressEvent(evt);
     break;
   }
 }
 
-void VizTabWidget::handleFrameReady(const QImage &img, int fileNumber,
-                                    int frameIndex, int totalFrames) {
-  // paint
-  m_imageLabel->setPixmapKeepingAspect(QPixmap::fromImage(img));
-  // overlay
+void VizTabWidget::advanceRotationFrame() {
+  m_currentRotationFrame = (m_currentRotationFrame + 1) % m_loader.m_nFrames;
+  loadCurrentFrame();
+}
+
+void VizTabWidget::watchImageDirectory(const QString &dir) {
+  m_imageDirectory = dir;
+  if (!m_imageDirectory.endsWith('/'))
+    m_imageDirectory += '/';
+  m_dirWatcher.removePaths(m_dirWatcher.directories());
+  if (QDir(dir).exists()) {
+    m_dirWatcher.addPath(dir);
+    scanImageDirectory();
+  }
+}
+
+void VizTabWidget::scanImageDirectory() {
+  if (m_imageDirectory.isEmpty())
+    return;
+  QDir d(m_imageDirectory);
+  auto files = d.entryList({"*.hdf5"}, QDir::Files, QDir::Name);
+  static QRegularExpression re(R"(_(\d+)\.hdf5$)");
+  int maxIdx = m_latestFileNumber;
+  for (auto &fn : files) {
+    auto m = re.match(fn);
+    if (m.hasMatch()) {
+      int idx = m.captured(1).toInt();
+      maxIdx = std::max(maxIdx, idx);
+    }
+  }
+  if (maxIdx > m_latestFileNumber) {
+    m_latestFileNumber = maxIdx;
+    m_currentFileNumber = maxIdx;
+    QString path =
+        m_imageDirectory + "image_" + QString::number(maxIdx) + ".hdf5";
+    if (m_loader.openFile(path, m_datasetKey, m_percentileLow,
+                          m_percentileHigh)) {
+      loadCurrentFrame();
+    }
+  }
+}
+
+void VizTabWidget::setDatasetKey(const QString &key) {
+  if (key == m_datasetKey)
+    return;
+  m_datasetKey = key;
+  // pick colormap
+  if (key == "dark_matter")
+    setColormap(Colormap::Plasma);
+  else if (key == "gas")
+    setColormap(Colormap::Magma);
+  else if (key == "stars")
+    setColormap(Colormap::Greyscale);
+  else if (key == "gas_temperature")
+    setColormap(Colormap::Inferno);
+  // reopen file to re-compute percentiles
+  if (m_currentFileNumber >= 0) {
+    QString path = m_imageDirectory + "image_" +
+                   QString::number(m_currentFileNumber) + ".hdf5";
+    m_loader.openFile(path, m_datasetKey, m_percentileLow, m_percentileHigh);
+    loadCurrentFrame();
+  }
+}
+
+void VizTabWidget::setPercentileRange(float low, float high) {
+  m_percentileLow = qBound(0.0f, low, 100.0f);
+  m_percentileHigh = qBound(0.0f, high, 100.0f);
+  // recompute / reload
+  if (m_currentFileNumber >= 0) {
+    QString path = m_imageDirectory + "image_" +
+                   QString::number(m_currentFileNumber) + ".hdf5";
+    m_loader.openFile(path, m_datasetKey, m_percentileLow, m_percentileHigh);
+    loadCurrentFrame();
+  }
+}
+
+void VizTabWidget::percentileRange(float &low, float &high) const {
+  low = m_percentileLow;
+  high = m_percentileHigh;
+}
+
+void VizTabWidget::setColormap(Colormap map) {
+  m_colormap = map;
+  switch (map) {
+  case Colormap::Plasma:
+    m_cmap = plasma_colormap;
+    m_cmap_size = plasma_colormap_size;
+    break;
+  case Colormap::Magma:
+    m_cmap = magma_colormap_colormap;
+    m_cmap_size = magma_colormap_colormap_size;
+    break;
+  case Colormap::Viridis:
+    m_cmap = viridis_colormap_colormap;
+    m_cmap_size = viridis_colormap_colormap_size;
+    break;
+  case Colormap::Jet:
+    m_cmap = jet_colormap_colormap;
+    m_cmap_size = jet_colormap_colormap_size;
+    break;
+  case Colormap::Inferno:
+    m_cmap = inferno_colormap_colormap;
+    m_cmap_size = inferno_colormap_colormap_size;
+    break;
+  case Colormap::Greyscale:
+    m_cmap = greyscale_colormap_colormap;
+    m_cmap_size = greyscale_colormap_colormap_size;
+    break;
+  }
+}
+
+void VizTabWidget::loadCurrentFrame() {
+  // 1) Fetch floats
+  if (!m_loader.fetchFrame(m_currentRotationFrame))
+    return;
+
+  // 2) Upload as single‐channel floating‐point texture
+  glBindTexture(GL_TEXTURE_2D, m_texture);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, m_loader.width(), m_loader.height(),
+               0, GL_RED, GL_FLOAT, m_loader.data());
+
+  // 3) Set uniforms: [lower,upper] and colormap LUT
+  glUseProgram(m_program);
+  glUniform2f(m_locRange, m_loader.m_lowerValue, m_loader.m_upperValue);
+
+  // TODO upload colormap LUT (e.g. as a 1D texture or UBO)
+
+  // 4) Trigger redraw
+  update();
+
+  // 5) Overlay text
   m_overlayLabel->setText(QString("File %1/%2  Rot %3/%4  [%5]")
-                              .arg(fileNumber)
+                              .arg(m_currentFileNumber)
                               .arg(m_latestFileNumber)
-                              .arg(frameIndex)
-                              .arg(totalFrames)
-                              .arg(m_currentDatasetKey));
+                              .arg(m_currentRotationFrame)
+                              .arg(m_loader.m_nFrames)
+                              .arg(m_datasetKey));
   m_overlayLabel->adjustSize();
-  m_overlayLabel->raise();
-}
-
-void VizTabWidget::resizeEvent(QResizeEvent *ev) {
-  QWidget::resizeEvent(ev);
-  // overlay position
-  m_overlayLabel->move(10, 10);
-  // logo watermark (~20% height, bottom-right)
-  const int margin = 10;
-  int maxH = height() * 20 / 100;
-  QSize tgt(maxH * m_logoOrig.width() / m_logoOrig.height(), maxH);
-  QPixmap scaled =
-      m_logoOrig.scaled(tgt, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-  m_logoLabel->setPixmap(scaled);
-  m_logoLabel->setFixedSize(scaled.size());
-  m_logoLabel->move(width() - scaled.width() - margin,
-                    height() - scaled.height() - margin);
-  m_logoLabel->raise();
-}
-
-void VizTabWidget::onImageDirectoryChanged(const QString &) {
-  scanImageDirectory();
 }

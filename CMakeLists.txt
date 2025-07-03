@@ -29,7 +29,7 @@ if (NOT yaml-cpp_FOUND)
 endif()
 
 # ─── Qt ─────────────────────────────────────────────────
-find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui OpenGL OpenGLWidgets)
 
 # ─── HDF5 ───────────────────────────────────────────────
 find_package(HDF5 REQUIRED COMPONENTS CXX)
@@ -77,6 +77,9 @@ set(HEADERS
     src/ImageProgressWidget.h
 )
 
+# after find_package(Qt6 ...)
+add_compile_definitions(QT_NO_DEPRECATED_WARNINGS)
+
 # ─── QRCs ────────────────────────────────────────────────
 qt6_add_resources(IMAGE_RES resources/images.qrc)
 qt6_add_resources(STYLE_QRC resources/styles.qrc)
@@ -95,6 +98,8 @@ target_link_libraries(${PROJECT_NAME}
       Qt6::Widgets
       Qt6::Core
       Qt6::Gui
+      Qt6::OpenGL
+      Qt6::OpenGLWidgets
       yaml-cpp
       ${HDF5_CXX_LIBRARIES}       # HDF5 C++ API
       ${HDF5_LIBRARIES}           # HDF5 C API
