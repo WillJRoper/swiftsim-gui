@@ -8,6 +8,7 @@
 #include <QProgressBar>
 #include <QPropertyAnimation>
 #include <QStackedWidget>
+#include <QThread>
 
 class SimulationController;
 class LogTabWidget;
@@ -41,6 +42,7 @@ private:
   void createProgressBar();
   void createPlots();
   void createVisualisations();
+  void createDataWatcher();
 
   void switchToTab(int index);
 
@@ -49,7 +51,8 @@ private:
 
   // data
   SimulationController *m_simCtrl;
-  DataWatcher *m_dataWatcher;
+  DataWatcher *m_dataWatcher = nullptr;
+  QThread *m_dwThread = nullptr;
   LogTabWidget *m_logTab;
   QTabWidget *m_tabs;
 

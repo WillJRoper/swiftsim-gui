@@ -4,35 +4,41 @@
 #include <QRegularExpression>
 #include <QTextStream>
 
-// 1) Construct: initialize watcher, timer, and load initial data
+/**************************************************************************************************/
+/*                                    Constructor / Destructor */
+/**************************************************************************************************/
 DataWatcher::DataWatcher(const QString &filePath, QObject *parent)
     : QObject(parent), m_filePath(filePath),
       m_watcher(new QFileSystemWatcher(this)), m_timer(new QTimer(this)) {
-  // Configure one-shot debounce timer
+  // 1) Configure one-shot debounce timer
   m_timer->setSingleShot(true);
+  m_timer->setInterval(100); // 100 ms debounce
   connect(m_timer, &QTimer::timeout, this, &DataWatcher::updateData);
 
-  // Watch the file; if it’s replaced, onFileChanged will re-add it
+  // 2) Watch the file; onFileChanged will re-add if it's replaced
   m_watcher->addPath(m_filePath);
   connect(m_watcher, &QFileSystemWatcher::fileChanged, this,
           &DataWatcher::onFileChanged);
 
-  // Initial load
-  updateData();
+  // 3) No initial load on the UI thread—will be triggered when thread starts
 }
 
-// 2) Debounce file-changed notifications and ensure watch persists
+/**************************************************************************************************/
+/*                                 Debounce and Re-watch slot */
+/**************************************************************************************************/
 void DataWatcher::onFileChanged(const QString &path) {
-  // Restart debounce timer (100 ms)
-  m_timer->start(100);
+  // 1) Restart debounce timer
+  m_timer->start();
 
-  // If file was rotated/replaced, re-add the path so we keep watching
+  // 2) If file was replaced, re-add so we keep watching
   if (!m_watcher->files().contains(path)) {
     m_watcher->addPath(path);
   }
 }
 
-// 3) Read the file, extract the last non-empty line, and parse
+/**************************************************************************************************/
+/*                               Read & parse on timer timeout */
+/**************************************************************************************************/
 void DataWatcher::updateData() {
   QFile file(m_filePath);
   if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -40,105 +46,59 @@ void DataWatcher::updateData() {
     return;
   }
 
-  // Read all lines, split on newlines
+  // 1) Read all lines, split on newline, skip empties
   QStringList lines = QTextStream(&file).readAll().split(
       QRegularExpression("[\r\n]+"), Qt::SkipEmptyParts);
   file.close();
 
-  // Need at least one header + one data line
-  if (lines.size() <= 1) {
+  // 2) Need at least header + one data line
+  if (lines.size() <= 1)
     return;
-  }
 
-  // Remove the header
+  // 3) Drop header
   lines.removeFirst();
+  const QString &lastLine = lines.last();
 
-  // Parse the last data line
-  parseLine(lines.last());
-}
-
-// 4) Parse a single whitespace-separated line into columns and emit signals
-void DataWatcher::parseLine(const QString &line) {
-  const QStringList parts =
-      line.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
-  if (parts.size() < 9) {
-    qWarning() << "DataWatcher: malformed line (expected 9 cols):" << line;
+  // 4) Split into columns
+  QStringList parts =
+      lastLine.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+  if (parts.size() < 13) {
+    qWarning() << "DataWatcher: malformed line (expected ≥13 cols):"
+               << lastLine;
     return;
   }
 
-  bool ok = false;
-  int idx = 0;
-
-  // We should only emit if at least half of the gparts have been updated
-  bool emitSignals = true;
-  if (m_numGParts > 0 && parts[4].toInt(&ok) < m_numGParts / 2) {
-    if (ok) {
-      emitSignals = false; // Not enough gparts updated this time
-    }
-  }
-
-  // 1) Step
-  int step = parts[idx++].toInt(&ok);
-  if (ok)
+  // 5) Always emit stepChanged and percentRunChanged
+  bool okStep = false, okPct = false;
+  int step = parts[0].toInt(&okStep);
+  double pct = parts[12].toDouble(&okPct);
+  if (okStep)
     emit stepChanged(step);
+  if (okPct)
+    emit percentRunChanged(pct);
 
-  // 2) Scale factor
-  double scaleFactor = parts[idx++].toDouble(&ok);
-  if (ok && emitSignals)
-    emit scaleFactorChanged(scaleFactor);
+  // 6) Decide if we “emit heavy” (≥ half g-parts updated)
+  bool emitHeavy = true;
+  qint64 gUpd = parts[4].toLongLong(&emitHeavy);
+  if (emitHeavy && m_numGParts > 0 && gUpd < m_numGParts / 2)
+    emitHeavy = false;
 
-  // 3) Redshift
-  double redshift = parts[idx++].toDouble(&ok);
-  if (ok && emitSignals)
-    emit redshiftChanged(redshift);
-
-  // 4) Number of parts
-  qint64 numParts = parts[idx++].toLongLong(&ok);
-  if (ok && emitSignals) {
-    emit numberOfPartsChanged(numParts);
-    m_totalNumParts += numParts;
-    emit totalNumberOfPartsChanged(m_totalNumParts);
+  // 7) Emit the heavier signals only if allowed
+  if (emitHeavy) {
+    bool okSF = false, okRZ = false, okWT = false;
+    double sf = parts[1].toDouble(&okSF);
+    double rz = parts[2].toDouble(&okRZ);
+    double wt = parts[11].toDouble(&okWT);
+    if (okSF)
+      emit scaleFactorChanged(sf);
+    if (okRZ)
+      emit redshiftChanged(rz);
+    if (okWT)
+      emit wallClockTimeForStepChanged(wt);
+    emit numberOfGPartsChanged(gUpd);
   }
 
-  // 5) Number of gparts
-  qint64 numGParts = parts[idx++].toLongLong(&ok);
-  if (ok && emitSignals) {
-    emit numberOfGPartsChanged(numGParts);
-    m_totalGParts += numGParts;
-    emit totalNumberOfGPartsChanged(m_totalGParts);
-  }
-
-  // 6) Number of sparts
-  qint64 numSParts = parts[idx++].toLongLong(&ok);
-  if (ok && emitSignals) {
-    emit numberOfSPartsChanged(numSParts);
-    m_totalSParts += numSParts;
-    emit totalNumberOfSPartsChanged(m_totalSParts);
-  }
-
-  // 7) Number of black holes
-  qint64 numBH = parts[idx++].toLongLong(&ok);
-  if (ok && emitSignals) {
-    emit numberOfBlackHolesChanged(numBH);
-    m_totalBlackHoles += numBH;
-    emit totalNumberOfBlackHolesChanged(m_totalBlackHoles);
-  }
-
-  // 8) Wall-clock time for this step
-  double wallTime = parts[idx++].toDouble(&ok);
-  if (ok && emitSignals) {
-    emit wallClockTimeForStepChanged(wallTime);
-    m_totalWallClockTime += wallTime;
-    emit totalWallClockTimeChanged(m_totalWallClockTime);
-  }
-
-  // 9) Percentage of full run
-  double percentRun = parts[idx++].toDouble(&ok);
-  if (ok && emitSignals)
-    emit percentRunChanged(percentRun);
-
-  // If we haven't set it then grab the number of gparts we have
-  if (m_numGParts < numGParts) {
-    m_numGParts = numGParts;
-  }
+  // 8) Capture total g-parts once
+  if (gUpd > m_numGParts)
+    m_numGParts = int(gUpd);
 }

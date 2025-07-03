@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include <QFileSystemWatcher>
@@ -10,16 +9,24 @@
  * @brief Watches a whitespace-separated table file (gui_data.txt) and emits
  * per-step and cumulative values via Qt signals.
  *
- * The file is expected to have exactly 9 columns per line:
+ * The file is expected to have exactly 13 columns per line:
  *   1) step
  *   2) scale factor
  *   3) redshift
- *   4) number of parts
+ *   4) (unused)
  *   5) number of gparts
- *   6) number of sparts
- *   7) number of black holes
- *   8) wallclock time for the step
- *   9) percentage of full run
+ *   6) (unused)
+ *   7) (unused)
+ *   8) (unused)
+ *   9) (unused)
+ *  10) (unused)
+ *  11) (unused)
+ *  12) wallclock time for the step
+ *  13) percentage of full run
+ *
+ * Emits two “always” signals for UI counters,
+ * and only emits the heavier-weight signals when at least half of the g-parts
+ * have updated.
  */
 class DataWatcher : public QObject {
   Q_OBJECT
@@ -32,7 +39,7 @@ public:
    */
   explicit DataWatcher(const QString &filePath, QObject *parent = nullptr);
 
-private slots:
+public slots:
   /**
    * @brief Slot invoked when the watched file is modified or replaced.
    *        Debounces rapid changes via a QTimer.
@@ -46,44 +53,21 @@ private slots:
    */
   void updateData();
 
-private:
-  /**
-   * @brief Parses a single whitespace-separated line and emits all
-   * corresponding signals. Also updates and emits cumulative totals.
-   * @param line  One full line from the file (must contain 9 columns)
-   */
-  void parseLine(const QString &line);
+signals:
+  // ─── Always-emitted, lightweight ───────────────────────────────────────
+  void stepChanged(int step);
+  void percentRunChanged(double percent);
 
+  // ─── Heavier-weight, rate-limited by “half g-parts” rule ──────────────
+  void scaleFactorChanged(double scaleFactor);
+  void redshiftChanged(double redshift);
+  void numberOfGPartsChanged(qint64 numGParts);
+  void wallClockTimeForStepChanged(double time);
+
+private:
   QString m_filePath;            ///< Path to gui_data.txt
   QFileSystemWatcher *m_watcher; ///< Watches file for changes
   QTimer *m_timer;               ///< Debounce timer
 
-  // Cumulative totals (sums over all parsed steps)
-  qint64 m_totalNumParts = 0;
-  qint64 m_totalGParts = 0;
-  qint64 m_totalSParts = 0;
-  qint64 m_totalBlackHoles = 0;
-  double m_totalWallClockTime = 0;
-
-  // Number of gparts in the simulation
-  int m_numGParts = 0;
-
-signals:
-  // Per-step values
-  void stepChanged(int step);
-  void scaleFactorChanged(double scaleFactor);
-  void redshiftChanged(double redshift);
-  void numberOfPartsChanged(qint64 numParts);
-  void numberOfGPartsChanged(qint64 numGParts);
-  void numberOfSPartsChanged(qint64 numSParts);
-  void numberOfBlackHolesChanged(qint64 numBlackHoles);
-  void wallClockTimeForStepChanged(double time);
-  void percentRunChanged(double percent);
-
-  // Cumulative totals
-  void totalNumberOfPartsChanged(qint64 totalParts);
-  void totalNumberOfGPartsChanged(qint64 totalGParts);
-  void totalNumberOfSPartsChanged(qint64 totalSParts);
-  void totalNumberOfBlackHolesChanged(qint64 totalBlackHoles);
-  void totalWallClockTimeChanged(double totalTime);
+  int m_numGParts = 0; ///< Total g-parts in the simulation
 };

@@ -37,10 +37,6 @@ MainWindow::MainWindow(SimulationController *simCtrl,
   setWindowState(Qt::WindowMaximized);
   setWindowIcon(QIcon(":/images/swift-logo-white.png")); // set the icon
 
-  // Create the data watcher that will gather the data from gui_data.txt
-  m_dataWatcher =
-      new DataWatcher(cmdParser->simulationDirectory() + "/gui_data.txt");
-
   // Create the step counter widget
   m_stepCounter = new StepCounterWidget(this);
 
@@ -49,7 +45,10 @@ MainWindow::MainWindow(SimulationController *simCtrl,
   createTabs(cmdParser);
   createProgressBar();
   createPlots();
+  createDataWatcher();
   createVisualisations();
+
+  // Connection all the signals and slots
   createActions();
 }
 
@@ -160,17 +159,19 @@ void MainWindow::createActions() {
           [this] { m_topStack->setCurrentIndex(3); });
   addAction(showParticles);
 
-  // ─── Dashboard updates from DataWatcher ───────────────────────
-  connect(m_dataWatcher, &DataWatcher::percentRunChanged, this,
-          &MainWindow::updateProgressBar);
+  // ─── DataWatcher → MainWindow ───────────────────────────
   connect(m_dataWatcher, &DataWatcher::stepChanged, this,
-          &MainWindow::updateStepCounter);
+          &MainWindow::updateStepCounter, Qt::QueuedConnection);
 
-  // ─── Plot updates from DataWatcher ──────────────────────────
-  connect(m_dataWatcher, &DataWatcher::totalWallClockTimeChanged,
-          m_wallTimePlot, &PlotWidget::refresh);
+  connect(m_dataWatcher, &DataWatcher::percentRunChanged, this,
+          &MainWindow::updateProgressBar, Qt::QueuedConnection);
+
+  // ─── DataWatcher → PlotWidgets ──────────────────────────
+  connect(m_dataWatcher, &DataWatcher::wallClockTimeForStepChanged,
+          m_wallTimePlot, &PlotWidget::refresh, Qt::QueuedConnection);
+
   connect(m_dataWatcher, &DataWatcher::numberOfGPartsChanged, m_particlePlot,
-          &PlotWidget::refresh);
+          &PlotWidget::refresh, Qt::QueuedConnection);
 
   // ─── Update the top box top widget on a Timer ─────────────────────
   m_topRotateTimer = new QTimer(this);
@@ -318,13 +319,30 @@ void MainWindow::updateCurrentTimeLabel(double t) {
 }
 
 void MainWindow::createVisualisations() {
-  // First make the visualisation tab widget
-  m_vizTab = new VizTabWidget();
+  m_vizTab = new VizTabWidget(this);
   m_tabs->addTab(m_vizTab, tr("Visualise"));
   QString imagesDir = m_simCtrl->simulationDirectory() + "/images";
-
-  // Start watching the images directory
   m_vizTab->watchImageDirectory(imagesDir);
+}
+
+void MainWindow::createDataWatcher() {
+  // 1) Instantiate (no parent—lives in its own thread)
+  m_dataWatcher =
+      new DataWatcher(m_simCtrl->simulationDirectory() + "/gui_data.txt",
+                      /*parent=*/nullptr);
+
+  // 2) Move it to its own thread
+  m_dwThread = new QThread(this);
+  m_dataWatcher->moveToThread(m_dwThread);
+
+  // 3) Kick off its initial load when the thread starts
+  connect(m_dwThread, &QThread::started, m_dataWatcher,
+          &DataWatcher::updateData);
+
+  // 4) Clean up watcher when thread finishes
+  connect(m_dwThread, &QThread::finished, m_dataWatcher, &QObject::deleteLater);
+
+  m_dwThread->start();
 }
 
 void MainWindow::rotateTopPage() {
