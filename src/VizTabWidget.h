@@ -32,8 +32,8 @@ private:
   QString m_imageDirectory;
   QString m_currentDatasetKey;
   int m_currentFileNumber = -1;
-  float m_percentileLow = 0.0f;
-  float m_percentileHigh = 100.0f;
+  float m_percentileLow = 5.0f;
+  float m_percentileHigh = 99.99f;
   float m_lowerValue = 0.0f;
   float m_upperValue = 1.0f;
   int m_nFrames = 0;
@@ -110,11 +110,11 @@ private:
 
   int m_nFrames = 0;
   int m_currentRotationFrame = 0;
-  int m_fps = 20;
+  int m_fps = 25;
 
   // percentile normalization
-  float m_percentileLow = 1.0f;
-  float m_percentileHigh = 99.0f;
+  float m_percentileLow = 5.0f;
+  float m_percentileHigh = 99.99f;
 
   // colormap
   Colormap m_colormap = Colormap::Plasma;

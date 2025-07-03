@@ -21,7 +21,7 @@ def main():
     # 3) Plot setup
     plt.style.use("dark_background")
     plt.figure(figsize=(6.4, 2.7306666667), dpi=100)
-    plt.xlabel("Scale Factor (a)", color=HAL_RED, fontsize=8)
+    plt.xlabel("Age of the Universe (Gyr)", color=HAL_RED, fontsize=8)
     plt.ylabel("Particle Count", color=HAL_RED, fontsize=8)
     plt.grid(True, color=HAL_RED, linestyle="--", linewidth=0.5)
 
@@ -41,7 +41,7 @@ def main():
 
     # 4) Plot each particle type
     plt.plot(
-        df["a"],
+        df["Time"],
         df["Nparts"],
         color=HAL_RED,
         linestyle=LINESTYLES[1],
@@ -49,7 +49,7 @@ def main():
         label="Gas",
     )
     plt.plot(
-        df["a"],
+        df["Time"],
         df["Ngparts"] - df["Nparts"] - df["Nsparts"] - df["Nbparts"],
         color=HAL_RED,
         linestyle=LINESTYLES[0],
@@ -57,7 +57,7 @@ def main():
         label="Dark Matter",
     )
     plt.plot(
-        df["a"],
+        df["Time"],
         df["Nsparts"],
         color=HAL_RED,
         linestyle=LINESTYLES[2],
@@ -65,12 +65,12 @@ def main():
         label="Stars",
     )
     plt.plot(
-        df["a"],
+        df["Time"],
         df["Nbparts"],
         color=HAL_RED,
         linestyle=LINESTYLES[3],
         linewidth=2,
-        label="Baryons",
+        label="Black Holes",
     )
 
     plt.legend(

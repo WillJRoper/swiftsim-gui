@@ -141,18 +141,15 @@ QProgressBar::chunk {
 
 /* ─── Seven-segment display (QLCDNumber) ───────────────────── */
 QLCDNumber {
-    background-color: #000;        /* deep black */
-    color: rgba(229, 0, 0, 200);                /* HAL-red segments */
-    border: 2px solid rgba(229, 0, 0, 200);     /* frame it in red */
-    border-radius: 4px;            /* soften the corners */
+    background-color: transparent;        /* deep black */
+    color: rgba(229, 0, 0, 180);                /* HAL-red segments */
     padding: 2px;                  /* a tiny inner margin */
 }
 
 /* ─── Prefix label (“Step:”) ───────────────────────────────── */
 StepCounterWidget QLabel {
-    color: #E50000;                /* match the LCD’s red */
-    font-family: "Digital-7 Mono", monospace; /* retro 7-segment font */
-    font-size: 14px;               /* adjust to taste */
+    color: rgba(229, 0, 0, 180);                /* match the LCD’s red */
+    font-size: 72px;               /* adjust to taste */
     padding-right: 4px;            /* space before the digits */
 }
 

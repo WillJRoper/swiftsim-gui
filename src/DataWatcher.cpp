@@ -12,7 +12,7 @@ DataWatcher::DataWatcher(const QString &filePath, QObject *parent)
       m_watcher(new QFileSystemWatcher(this)), m_timer(new QTimer(this)) {
   // 1) Configure one-shot debounce timer
   m_timer->setSingleShot(true);
-  m_timer->setInterval(100); // 100 ms debounce
+  m_timer->setInterval(1000); // 1000 ms debounce
   connect(m_timer, &QTimer::timeout, this, &DataWatcher::updateData);
 
   // 2) Watch the file; onFileChanged will re-add if it's replaced
@@ -69,13 +69,16 @@ void DataWatcher::updateData() {
   }
 
   // 5) Always emit stepChanged and percentRunChanged
-  bool okStep = false, okPct = false;
+  bool okStep = false, okPct = false, okStarMass = false;
   int step = parts[0].toInt(&okStep);
   double pct = parts[12].toDouble(&okPct);
+  double starMass = parts[14].toDouble(&okStarMass) * 1e10; // Convert to Msun
   if (okStep)
     emit stepChanged(step);
   if (okPct)
     emit percentRunChanged(pct);
+  if (okStarMass)
+    emit starMassChanged(starMass);
 
   // 6) Decide if we “emit heavy” (≥ half g-parts updated)
   bool emitHeavy = true;
@@ -85,10 +88,11 @@ void DataWatcher::updateData() {
 
   // 7) Emit the heavier signals only if allowed
   if (emitHeavy) {
-    bool okSF = false, okRZ = false, okWT = false;
+    bool okSF = false, okRZ = false, okWT = false, okBH = false;
     double sf = parts[1].toDouble(&okSF);
     double rz = parts[2].toDouble(&okRZ);
     double wt = parts[11].toDouble(&okWT);
+    int bh = parts[6].toInt(&okBH);
     if (okSF)
       emit scaleFactorChanged(sf);
     if (okRZ)
@@ -96,6 +100,29 @@ void DataWatcher::updateData() {
     if (okWT)
       emit wallClockTimeForStepChanged(wt);
     emit numberOfGPartsChanged(gUpd);
+    if (okBH)
+      emit numberofBHChanged(bh);
+
+    // Sum up the wall-clock time
+    double totalTime = 0.0;
+    int totalUpdates = 0;
+    for (const QString &line : lines) {
+      QStringList cols =
+          line.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+      if (cols.size() >= 13) {
+        bool ok = false;
+        double time = cols[11].toDouble(&ok);
+        if (ok)
+          totalTime += time;
+
+        // GParts are all parts so we just need to accumulate these
+        int gupdates = cols[8].toInt(&ok);
+        if (ok)
+          totalUpdates += gupdates;
+      }
+    }
+    emit totalWallClockTimeChanged(totalTime);
+    emit totalPartUpdatesChanged(totalUpdates);
   }
 
   // 8) Capture total g-parts once

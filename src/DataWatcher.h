@@ -62,7 +62,13 @@ signals:
   void scaleFactorChanged(double scaleFactor);
   void redshiftChanged(double redshift);
   void numberOfGPartsChanged(qint64 numGParts);
+  void numberofBHChanged(int numBH);
+  void starMassChanged(double totalMass);
   void wallClockTimeForStepChanged(double time);
+
+  // ─── Totals from sums we do ────────────────────────────────
+  void totalWallClockTimeChanged(double totalTime);
+  void totalPartUpdatesChanged(int totalUpdates);
 
 private:
   QString m_filePath;            ///< Path to gui_data.txt

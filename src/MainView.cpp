@@ -37,9 +37,6 @@ MainWindow::MainWindow(SimulationController *simCtrl,
   setWindowState(Qt::WindowMaximized);
   setWindowIcon(QIcon(":/images/swift-logo-white.png")); // set the icon
 
-  // Create the step counter widget
-  m_stepCounter = new StepCounterWidget(this);
-
   // Set up each of the UI elements
   createSplitterAndLayouts();
   createTabs(cmdParser);
@@ -47,6 +44,7 @@ MainWindow::MainWindow(SimulationController *simCtrl,
   createPlots();
   createDataWatcher();
   createVisualisations();
+  createCounters();
 
   // Connection all the signals and slots
   createActions();
@@ -159,10 +157,24 @@ void MainWindow::createActions() {
           [this] { m_topStack->setCurrentIndex(3); });
   addAction(showParticles);
 
+  QAction *showCSFRD = new QAction(tr("CSFRD Plot"), this);
+  showCSFRD->setShortcut(QKeySequence(Qt::Key_6));
+  showCSFRD->setShortcutContext(Qt::ApplicationShortcut);
+  connect(showCSFRD, &QAction::triggered, this,
+          [this] { m_topStack->setCurrentIndex(4); });
+  addAction(showCSFRD);
+
   // ─── DataWatcher → MainWindow ───────────────────────────
   connect(m_dataWatcher, &DataWatcher::stepChanged, this,
           &MainWindow::updateStepCounter, Qt::QueuedConnection);
-
+  connect(m_dataWatcher, &DataWatcher::totalWallClockTimeChanged, this,
+          &MainWindow::updateWallClockCounter, Qt::QueuedConnection);
+  connect(m_dataWatcher, &DataWatcher::starMassChanged, this,
+          &MainWindow::updateStarsFormedCounter, Qt::QueuedConnection);
+  connect(m_dataWatcher, &DataWatcher::numberofBHChanged, this,
+          &MainWindow::updateBlackHolesFormedCounter, Qt::QueuedConnection);
+  connect(m_dataWatcher, &DataWatcher::totalPartUpdatesChanged, this,
+          &MainWindow::updateParticleUpdateCounter, Qt::QueuedConnection);
   connect(m_dataWatcher, &DataWatcher::percentRunChanged, this,
           &MainWindow::updateProgressBar, Qt::QueuedConnection);
 
@@ -266,9 +278,6 @@ void MainWindow::createProgressBar() {
   auto *dashPage = m_topStack->widget(0);
   auto *vbox = static_cast<QVBoxLayout *>(dashPage->layout());
   vbox->addWidget(timeline);
-
-  // Make another widget for the step counter
-  m_topStack->addWidget(m_stepCounter);
 }
 
 /**
@@ -302,6 +311,14 @@ void MainWindow::createPlots() {
       partScript, m_simCtrl->simulationDirectory() + "/gui_data.txt", partPng,
       this);
   m_topStack->addWidget(m_particlePlot);
+
+  // Page 3: CSFRD
+  const QString csfrdScript = QDir(scriptsDir).filePath("plot_csfrd.py");
+  const QString csfrdPng = QDir(plotsDir).filePath("csfrd_plot.png");
+  m_csfrdPlot = new PlotWidget(
+      csfrdScript, m_simCtrl->simulationDirectory() + "/gui_data.txt", csfrdPng,
+      this);
+  m_topStack->addWidget(m_csfrdPlot);
 }
 
 void MainWindow::updateProgressBar(double pcent) {
@@ -345,6 +362,34 @@ void MainWindow::createDataWatcher() {
   m_dwThread->start();
 }
 
+/**
+ * @brief Create counters and link them into the top stacked widget.
+ */
+void MainWindow::createCounters() {
+  // Create the step counter widget
+  m_stepCounter = new StepCounterWidget(tr("SIMULATION STEPS"), this, 4);
+  m_topStack->addWidget(m_stepCounter);
+
+  // Create the current time counter
+  m_wallClockCounter = new StepCounterWidget(tr("RUNTIME (HRS)"), this, 4);
+  m_topStack->addWidget(m_wallClockCounter);
+
+  // Create the stellar mass formed counter
+  m_starsFormedCounter =
+      new StepCounterWidget(tr("SOLAR MASSES \nFORMED"), this, 4);
+  m_topStack->addWidget(m_starsFormedCounter);
+
+  // Create the black holes formed counter
+  m_blackHolesFormedCounter =
+      new StepCounterWidget(tr("BLACK HOLES \nFORMED"), this, 4);
+  m_topStack->addWidget(m_blackHolesFormedCounter);
+
+  // Create the updated particle counter
+  m_ParticleUpdateCounter =
+      new StepCounterWidget(tr("PARTICLES \nUPDATED"), this, 6);
+  m_topStack->addWidget(m_ParticleUpdateCounter);
+}
+
 void MainWindow::rotateTopPage() {
   if (!m_topStack)
     return;
@@ -357,6 +402,26 @@ void MainWindow::rotateTopPage() {
 }
 
 void MainWindow::updateStepCounter(int step) { m_stepCounter->setStep(step); }
+
+void MainWindow::updateWallClockCounter(double t) {
+  // Convert seconds to hours
+  int hours = t / 1000.0 / 60 / 60;
+  m_wallClockCounter->setStep(hours);
+}
+
+void MainWindow::updateStarsFormedCounter(double mass) {
+  // Convert mass to integer count (assuming 1 solar mass per star)
+  int count = static_cast<int>(mass);
+  m_starsFormedCounter->setStep(count);
+}
+
+void MainWindow::updateBlackHolesFormedCounter(int count) {
+  m_blackHolesFormedCounter->setStep(count);
+}
+
+void MainWindow::updateParticleUpdateCounter(int count) {
+  m_ParticleUpdateCounter->setStep(count);
+}
 
 void MainWindow::changeLogFontSize() {
   bool ok;

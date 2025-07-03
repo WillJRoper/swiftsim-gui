@@ -43,6 +43,7 @@ private:
   void createPlots();
   void createVisualisations();
   void createDataWatcher();
+  void createCounters();
 
   void switchToTab(int index);
 
@@ -61,22 +62,30 @@ private:
   QWidget *m_middleGap = nullptr;
   StyledSplitter *m_splitter = nullptr;
 
-  // progress bar
+  // Progress bar
   ImageProgressWidget *m_progressWidget;
 
-  // Step Counter
+  // Counters
   StepCounterWidget *m_stepCounter;
+  StepCounterWidget *m_wallClockCounter;
+  StepCounterWidget *m_starsFormedCounter;
+  StepCounterWidget *m_blackHolesFormedCounter;
+  StepCounterWidget *m_ParticleUpdateCounter;
 
   // Functions for updating UI elements
   void updateProgressBar(double percent);
   void updateCurrentTimeLabel(double t);
   void updateStepCounter(int step);
+  void updateWallClockCounter(double t);
+  void updateStarsFormedCounter(double mass);
+  void updateBlackHolesFormedCounter(int count);
+  void updateParticleUpdateCounter(int count);
 
   // Plots
   QStackedWidget *m_plotStack;
   PlotWidget *m_wallTimePlot;
-  PlotWidget *m_percentPlot;
   PlotWidget *m_particlePlot;
+  PlotWidget *m_csfrdPlot;
 
   // Visualization tab (4 rotating‐cube datasets)
   VizTabWidget *m_vizTab;
