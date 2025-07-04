@@ -269,6 +269,13 @@ VizTabWidget::VizTabWidget(QWidget *parent)
   connect(m_loader, &RotationFrameLoader::frameReady, this,
           &VizTabWidget::handleFrameReady, Qt::QueuedConnection);
   m_loaderThread->start();
+
+  // Debounce interval for knob manipulating the file number
+  constexpr int DEBOUNCE_MS = 100;
+  m_debounceTimer.setSingleShot(true);
+  m_debounceTimer.setInterval(DEBOUNCE_MS);
+  connect(&m_debounceTimer, &QTimer::timeout, this,
+          &VizTabWidget::applyPendingDelta);
 }
 
 VizTabWidget::~VizTabWidget() {
@@ -453,4 +460,29 @@ void VizTabWidget::onImageDirectoryChanged(const QString &) {
 
 void VizTabWidget::setTitle(const QString &text) {
   m_titleLabel->setText(text);
+}
+
+// Instead of immediately changing file number, add to pending and restart timer
+void VizTabWidget::rewindTime(int delta) {
+  m_pendingDelta -= delta;
+  m_debounceTimer.start(); // restart countdown
+}
+
+void VizTabWidget::fastForwardTime(int delta) {
+  m_pendingDelta += delta;
+  m_debounceTimer.start();
+}
+
+// When pulses calm down, apply the net change
+void VizTabWidget::applyPendingDelta() {
+  if (m_pendingDelta == 0)
+    return;
+
+  // compute new clamped file number
+  int newFileNumber =
+      std::clamp(m_currentFileNumber + m_pendingDelta, 0, m_latestFileNumber);
+
+  // apply and reset
+  setCurrentFileNumber(newFileNumber);
+  m_pendingDelta = 0;
 }

@@ -77,6 +77,12 @@ public slots:
   /// Query the current percentile range
   void percentileRange(float &low, float &high) const;
 
+  /// Rewind time by a delta
+  void rewindTime(int delta);
+
+  /// Fast forward time by a delta
+  void fastForwardTime(int delta);
+
 protected:
   void resizeEvent(QResizeEvent *ev) override;
   void keyPressEvent(QKeyEvent *evt) override;
@@ -91,6 +97,7 @@ private slots:
   void handleFrameReady(const QImage &img, int fileNumber, int frameIndex,
                         int totalFrames);
   void onImageDirectoryChanged(const QString &path);
+  void applyPendingDelta();
 
 private:
   void scanImageDirectory();
@@ -141,4 +148,8 @@ private:
 
   // colormap
   Colormap m_colormap = Colormap::Plasma;
+
+  // pending time delta for rewinding/fast-forwarding and debouncing timer
+  int m_pendingDelta = 0;
+  QTimer m_debounceTimer;
 };

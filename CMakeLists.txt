@@ -29,7 +29,7 @@ if (NOT yaml-cpp_FOUND)
 endif()
 
 # ─── Qt ─────────────────────────────────────────────────
-find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui SerialPort)
 
 # ─── HDF5 ───────────────────────────────────────────────
 find_package(HDF5 REQUIRED COMPONENTS CXX)
@@ -60,6 +60,7 @@ set(SOURCES
     src/StepCounter.cpp
     src/PlotWidget.cpp
     src/ImageProgressWidget.cpp
+    src/SerialHandler.cpp
 )
 
 set(HEADERS
@@ -75,6 +76,7 @@ set(HEADERS
     src/StepCounter.h
     src/PlotWidget.h
     src/ImageProgressWidget.h
+    src/SerialHandler.h
 )
 
 # ─── QRCs ────────────────────────────────────────────────
@@ -95,6 +97,7 @@ target_link_libraries(${PROJECT_NAME}
       Qt6::Widgets
       Qt6::Core
       Qt6::Gui
+      Qt6::SerialPort
       yaml-cpp
       ${HDF5_CXX_LIBRARIES}       # HDF5 C++ API
       ${HDF5_LIBRARIES}           # HDF5 C API

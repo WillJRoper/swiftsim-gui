@@ -1,6 +1,7 @@
 #pragma once
 
 #include "PlotWidget.h"
+#include "SerialHandler.h"
 #include <QAction>
 #include <QActionGroup>
 #include <QLabel>
@@ -79,6 +80,7 @@ private:
   void updateStarsFormedCounter(double mass);
   void updateBlackHolesFormedCounter(int count);
   void updateParticleUpdateCounter(int count);
+  void buttonUpdateUI(int id);
 
   // Plots
   PlotWidget *m_wallTimePlot;
@@ -96,4 +98,10 @@ private:
 
   // Actions for the menu bar
   QTimer *m_topRotateTimer = nullptr;
+
+  /// Our serial handler for interfacing with the controls
+  SerialHandler *m_serialHandler = nullptr;
+
+  /// Sets up serial I/O on the given port and hooks up debug slots
+  void createSerialHandler(const QString &portPath);
 };

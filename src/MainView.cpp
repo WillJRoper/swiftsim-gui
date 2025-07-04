@@ -8,6 +8,7 @@
 #include "LogTabWidget.h"
 #include "MainView.h"
 #include "PlotWidget.h"
+#include "SerialHandler.h"
 #include "SimulationController.h"
 #include "StepCounter.h"
 #include "StyledSplitter.h"
@@ -16,6 +17,7 @@
 #include <QAction>
 #include <QCoreApplication>
 #include <QCursor>
+#include <QDebug>
 #include <QDir>
 #include <QInputDialog>
 #include <QMenu>
@@ -43,6 +45,7 @@ MainWindow::MainWindow(SimulationController *simCtrl,
   createProgressBar();
   createPlots();
   createDataWatcher();
+  createSerialHandler("/dev/cu.usbmodem3301");
   createVisualisations();
   createCounters();
 
@@ -190,6 +193,16 @@ void MainWindow::createActions() {
   m_topRotateTimer->setInterval(2000);
   connect(m_topRotateTimer, &QTimer::timeout, this, &MainWindow::rotateTopPage);
   m_topRotateTimer->start();
+
+  // ─── Map control buttons GUI updates ────────────────────
+  connect(m_serialHandler, &SerialHandler::buttonPressed, this,
+          &MainWindow::buttonUpdateUI);
+
+  // ─── Map encoder rotation to top page rotation ──────────────
+  connect(m_serialHandler, &SerialHandler::rotatedCW, m_vizTab,
+          &VizTabWidget::fastForwardTime);
+  connect(m_serialHandler, &SerialHandler::rotatedCCW, m_vizTab,
+          &VizTabWidget::rewindTime);
 }
 
 /**
@@ -394,6 +407,33 @@ void MainWindow::createCounters() {
   m_topStack->addWidget(m_ParticleUpdateCounter);
 }
 
+void MainWindow::createSerialHandler(const QString &portPath) {
+  // Instantiate and let MainWindow own it
+  m_serialHandler = new SerialHandler(portPath, /*baud=*/115200, this);
+
+  // Button presses → debug
+  connect(m_serialHandler, &SerialHandler::buttonPressed, this,
+          [](int id) { qDebug() << "[Serial] Button" << id << "pressed"; });
+
+  // Clockwise rotation → debug
+  connect(m_serialHandler, &SerialHandler::rotatedCW, this, [](int steps) {
+    qDebug() << "[Serial] Rotated CW by" << steps << "steps";
+  });
+
+  // Anti-clockwise rotation → debug
+  connect(m_serialHandler, &SerialHandler::rotatedCCW, this, [](int steps) {
+    qDebug() << "[Serial] Rotated CCW by" << steps << "steps";
+  });
+
+  // Absolute position updates → debug
+  connect(m_serialHandler, &SerialHandler::positionChanged, this,
+          [](int pos) { qDebug() << "[Serial] Position changed to" << pos; });
+
+  // Error reporting → debug
+  connect(m_serialHandler, &SerialHandler::errorOccurred, this,
+          [](const QString &msg) { qDebug() << "[Serial] Error:" << msg; });
+}
+
 void MainWindow::rotateTopPage() {
   if (!m_topStack)
     return;
@@ -440,5 +480,42 @@ void MainWindow::changeLogFontSize() {
 void MainWindow::switchToTab(int index) {
   if (index >= 0 && index < m_bottomWidget->count()) {
     m_bottomWidget->setCurrentIndex(index);
+  }
+}
+
+void MainWindow::buttonUpdateUI(int id) {
+
+  // Perform the right operation based on the button ID
+  switch (id) {
+  case 1:
+    // Dark Matter Visualisation
+    m_vizTab->setDatasetKey("dark_matter");
+    m_bottomWidget->setCurrentIndex(2);
+    break;
+  case 5:
+    // Gas Visualisation
+    m_vizTab->setDatasetKey("gas");
+    m_bottomWidget->setCurrentIndex(2);
+    break;
+  case 6:
+    // Stars Visualisation
+    m_vizTab->setDatasetKey("stars");
+    m_bottomWidget->setCurrentIndex(2);
+    break;
+  case 2:
+    // Gas Temperature Visualisation
+    m_vizTab->setDatasetKey("gas_temperature");
+    m_bottomWidget->setCurrentIndex(2);
+    break;
+  case 3:
+    m_bottomWidget->setCurrentIndex(1); // Log widget
+    break;
+  case 4:
+    // Next on top widget
+    rotateTopPage();
+    break;
+  default:
+    qDebug() << "Unknown button ID:" << id;
+    break;
   }
 }
