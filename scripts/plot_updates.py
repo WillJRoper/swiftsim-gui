@@ -23,12 +23,16 @@ def main():
     # 2) Compute cumulative wallclock
     df["cumWall"] = df["Wallclock"].cumsum()
 
+    # Compute the cumalative gpart updates
+    df["cumGpartUpdates"] = df["Ngupdates"].cumsum()
+
     # 3) Plot setup
     plt.style.use("dark_background")
     plt.figure(figsize=(12, 12 / 2.34375), dpi=300)
-    plt.xlabel("Age of the Universe (Gyr)", color=HAL_RED, fontsize=16)
-    plt.ylabel("Runtime (Hours)", color=HAL_RED, fontsize=16)
+    plt.ylabel("Total Particle Updates", color=HAL_RED, fontsize=16)
+    plt.xlabel("Runtime (Hours)", color=HAL_RED, fontsize=16)
     plt.grid(True, color=HAL_RED, linestyle="--", linewidth=0.5)
+    plt.yscale("log")
 
     # Axis label colors
     plt.gca().tick_params(colors=HAL_RED, which="both", axis="both", labelsize=12)
@@ -39,12 +43,11 @@ def main():
 
     # 4) Single series with linestyle[0]
     plt.plot(
-        df["Time"],
         df["cumWall"] / 1000 / 60 / 60,  # Convert to hours
+        df["cumGpartUpdates"],
         color=HAL_RED,
         linestyle=LINESTYLES[0],
         linewidth=2,
-        label="Wallclock",
     )
 
     plt.tight_layout()

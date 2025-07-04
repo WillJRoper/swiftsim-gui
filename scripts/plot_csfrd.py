@@ -25,7 +25,7 @@ def main():
 
     # 2) Create figure & main axis
     plt.style.use("dark_background")
-    fig, ax = plt.subplots(figsize=(6.4, 2.7306666667), dpi=100)
+    fig, ax = plt.subplots(figsize=(12, 12 / 2.34375), dpi=300)
 
     # 3) Plot the CSFRD
     ax.plot(
@@ -37,11 +37,11 @@ def main():
     )
 
     # 4) Styling bottom axis
-    ax.set_xlabel("Age of the Universe (Gyr)", color=HAL_RED, fontsize=8)
-    ax.set_ylabel(r"CSFRD / [$M_\odot$ / Gyr / cMpc$^{3}$]", color=HAL_RED, fontsize=8)
+    ax.set_xlabel("Age of the Universe (Gyr)", color=HAL_RED, fontsize=16)
+    ax.set_ylabel(r"CSFRD / [$M_\odot$ / Gyr / cMpc$^{3}$]", color=HAL_RED, fontsize=16)
     ax.set_yscale("log")
     ax.grid(True, color=HAL_RED, linestyle="--", linewidth=0.5)
-    ax.tick_params(colors=HAL_RED, which="both", axis="both", labelsize=6)
+    ax.tick_params(colors=HAL_RED, which="both", axis="both", labelsize=12)
     for spine in ax.spines.values():
         spine.set_color(HAL_RED)
         spine.set_linewidth(0.5)
@@ -71,10 +71,10 @@ def main():
 
     # Apply to top axis
     ax2.set_xticks(bottom_ticks)
-    ax2.set_xticklabels([f"{z:.1f}" for z in z_ticks], color=HAL_RED, fontsize=6)
+    ax2.set_xticklabels([f"{z:.1f}" for z in z_ticks], color=HAL_RED, fontsize=12)
 
     # Label & style top axis
-    ax2.set_xlabel("Redshift", color=HAL_RED, fontsize=8)
+    ax2.set_xlabel("Redshift", color=HAL_RED, fontsize=16)
     ax2.xaxis.set_label_position("top")
     ax2.xaxis.tick_top()
     ax2.tick_params(colors=HAL_RED, which="both")
@@ -85,7 +85,7 @@ def main():
 
     # 6) Finalize and save
     plt.tight_layout()
-    fig.savefig(outpng, facecolor="black")
+    fig.savefig(outpng, facecolor="black", dpi=300)
     plt.close(fig)
 
 

@@ -50,14 +50,13 @@ private:
   // slots
   void changeLogFontSize();
 
-  // data
   SimulationController *m_simCtrl;
   DataWatcher *m_dataWatcher = nullptr;
   QThread *m_dwThread = nullptr;
   LogTabWidget *m_logTab;
   QStackedWidget *m_bottomWidget;
 
-  // NEW: sections for splitter layout
+  // Sections for splitter layout
   QStackedWidget *m_topStack = nullptr;
   QWidget *m_middleGap = nullptr;
   StyledSplitter *m_splitter = nullptr;
@@ -82,10 +81,10 @@ private:
   void updateParticleUpdateCounter(int count);
 
   // Plots
-  QStackedWidget *m_plotStack;
   PlotWidget *m_wallTimePlot;
   PlotWidget *m_particlePlot;
   PlotWidget *m_csfrdPlot;
+  PlotWidget *m_updatesPlot;
 
   // Visualization tab (4 rotating‐cube datasets)
   VizTabWidget *m_vizTab;

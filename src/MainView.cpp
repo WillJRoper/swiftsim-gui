@@ -161,7 +161,7 @@ void MainWindow::createActions() {
   showCSFRD->setShortcut(QKeySequence(Qt::Key_6));
   showCSFRD->setShortcutContext(Qt::ApplicationShortcut);
   connect(showCSFRD, &QAction::triggered, this,
-          [this] { m_topStack->setCurrentIndex(4); });
+          [this] { m_topStack->setCurrentIndex(5); });
   addAction(showCSFRD);
 
   // ─── DataWatcher → MainWindow ───────────────────────────
@@ -315,6 +315,14 @@ void MainWindow::createPlots() {
       csfrdScript, m_simCtrl->simulationDirectory() + "/gui_data.txt", csfrdPng,
       this);
   m_topStack->addWidget(m_csfrdPlot);
+
+  // Page 4: Particle Update Counts
+  const QString updatesScript = QDir(scriptsDir).filePath("plot_updates.py");
+  const QString updatesPng = QDir(plotsDir).filePath("update_plot.png");
+  m_updatesPlot = new PlotWidget(
+      updatesScript, m_simCtrl->simulationDirectory() + "/gui_data.txt",
+      updatesPng, this);
+  m_topStack->addWidget(m_updatesPlot);
 }
 
 void MainWindow::updateProgressBar(double pcent) {
