@@ -1,19 +1,149 @@
+// RotationFrameLoader.cpp
 #include "RotationFrameLoader.h"
 #include "VizTabWidget.h"
-#include <QApplication>
-#include <QDir>
 #include <QFile>
-#include <QFileInfoList>
-#include <QGraphicsOpacityEffect>
-#include <QKeyEvent>
-#include <QMetaObject>
-#include <QRegularExpression>
-#include <QVBoxLayout>
 #include <algorithm>
+#include <limits>
 
-/**************************************************************************************************/
-/*                                  RotationFrameLoader */
-/**************************************************************************************************/
+RotationFrameLoader::RotationFrameLoader(QObject *parent)
+    : QObject(parent), m_timer(new QTimer(this)) {
+  // Always-on rotation timer
+  connect(m_timer, &QTimer::timeout, this,
+          &RotationFrameLoader::nextRotationFrame);
+  m_timer->start(1000 / m_fps);
+}
+
+RotationFrameLoader::~RotationFrameLoader() {
+  m_timer->stop();
+  // tear down HDF5 in reverse order
+  if (m_memSpace >= 0)
+    H5Sclose(m_memSpace);
+  if (m_fileSpace >= 0)
+    H5Sclose(m_fileSpace);
+  if (m_dsetId >= 0)
+    H5Dclose(m_dsetId);
+  if (m_fileId >= 0)
+    H5Fclose(m_fileId);
+}
+
+void RotationFrameLoader::startLoading(const QString &imageDirectory,
+                                       int fileNumber,
+                                       const QString &datasetKey,
+                                       float percentileLow,
+                                       float percentileHigh, int colormapIdx,
+                                       int fps, bool keepPercentiles) {
+  // stash parameters
+  m_imageDirectory = imageDirectory;
+  m_currentFileNumber = fileNumber;
+  m_currentDatasetKey = datasetKey;
+  m_percentileLow = percentileLow;
+  m_percentileHigh = percentileHigh;
+  m_fps = fps;
+  m_colormapIdx = colormapIdx;
+  setColormap(colormapIdx);
+
+  // close previous HDF5 handles
+  if (m_memSpace >= 0) {
+    H5Sclose(m_memSpace);
+    m_memSpace = -1;
+  }
+  if (m_fileSpace >= 0) {
+    H5Sclose(m_fileSpace);
+    m_fileSpace = -1;
+  }
+  if (m_dsetId >= 0) {
+    H5Dclose(m_dsetId);
+    m_dsetId = -1;
+  }
+  if (m_fileId >= 0) {
+    H5Fclose(m_fileId);
+    m_fileId = -1;
+  }
+
+  // Open file with a larger chunk/cache (32 MiB) for better throughput
+  hid_t fapl = H5Pcreate(H5P_FILE_ACCESS);
+  H5Pset_cache(fapl,
+               /*mdc_nelmts=*/0,    // 0 = default # of metadata entries
+               /*rdcc_nslots=*/521, // raw-data chunk cache slots
+               /*rdcc_nbytes=*/32 * 1024 * 1024, // 32 MiB chunk cache
+               /*rdcc_w0=*/0.75);                // preemption policy
+  QString path =
+      m_imageDirectory + QString("image_%1.hdf5").arg(m_currentFileNumber);
+  m_fileId = H5Fopen(path.toUtf8().constData(), H5F_ACC_RDONLY, fapl);
+  H5Pclose(fapl);
+
+  // open dataset + get its dataspace
+  m_dsetId =
+      H5Dopen2(m_fileId, m_currentDatasetKey.toUtf8().constData(), H5P_DEFAULT);
+  m_fileSpace = H5Dget_space(m_dsetId);
+
+  // query full dims [frames, x, y]
+  hsize_t fullDims[3];
+  H5Sget_simple_extent_dims(m_fileSpace, fullDims, nullptr);
+  m_nFrames = int(fullDims[0]);
+  m_xres = int(fullDims[1]);
+  m_yres = int(fullDims[2]);
+
+  // create one‐slice memspace
+  hsize_t count[3] = {1, fullDims[1], fullDims[2]};
+  m_memSpace = H5Screate_simple(3, count, nullptr);
+
+  // allocate reusable buffers
+  m_buf.assign(size_t(m_xres) * m_yres, 0.0f);
+  m_img = QImage(m_xres, m_yres, QImage::Format_RGB888);
+
+  // percentile compute
+  if (!keepPercentiles)
+    computePercentiles();
+}
+
+void RotationFrameLoader::jumpToFile(int fileNumber, bool keepPercentiles) {
+  // under the same rotation clock, just reopen
+  startLoading(m_imageDirectory, fileNumber, m_currentDatasetKey,
+               m_percentileLow, m_percentileHigh, m_colormapIdx, m_fps,
+               keepPercentiles);
+  // no immediate frame load; nextRotationFrame() will pick it up
+}
+
+void RotationFrameLoader::computePercentiles() {
+  if (m_dsetId < 0 || m_nFrames <= 0)
+    return;
+
+  // read slice 0
+  hsize_t offset[3] = {0, 0, 0};
+  H5Sselect_hyperslab(m_fileSpace, H5S_SELECT_SET, offset, nullptr,
+                      (hsize_t[]){1, (hsize_t)m_xres, (hsize_t)m_yres},
+                      nullptr);
+  H5Dread(m_dsetId, H5T_NATIVE_FLOAT, m_memSpace, m_fileSpace, H5P_DEFAULT,
+          m_buf.data());
+
+  size_t N = m_buf.size();
+  if (N == 0) {
+    m_lowerValue = 0;
+    m_upperValue = 1;
+    return;
+  }
+
+  size_t lo = size_t((m_percentileLow / 100.f) * (N - 1) + .5f);
+  size_t hi = size_t((m_percentileHigh / 100.f) * (N - 1) + .5f);
+  lo = std::clamp(lo, size_t(0), N - 1);
+  hi = std::clamp(hi, size_t(0), N - 1);
+
+  std::nth_element(m_buf.begin(), m_buf.begin() + lo, m_buf.end());
+  m_lowerValue = m_buf[lo];
+  std::nth_element(m_buf.begin(), m_buf.begin() + hi, m_buf.end());
+  m_upperValue = m_buf[hi];
+
+  if (m_lowerValue == m_upperValue) {
+    m_lowerValue = std::numeric_limits<float>::max();
+    m_upperValue = std::numeric_limits<float>::lowest();
+    for (float v : m_buf) {
+      m_lowerValue = std::min(m_lowerValue, v);
+      m_upperValue = std::max(m_upperValue, v);
+    }
+  }
+}
+
 void RotationFrameLoader::setColormap(int colormapIdx) {
   switch (colormapIdx) {
   case int(VizTabWidget::Colormap::Plasma):
@@ -44,177 +174,49 @@ void RotationFrameLoader::setColormap(int colormapIdx) {
   }
 }
 
-void RotationFrameLoader::computePercentiles() {
-  if (m_fileId < 0 || m_nFrames <= 0)
-    return;
-
-  // read only frame 0
-  std::vector<float> all(size_t(m_xres) * m_yres);
-  hid_t dset =
-      H5Dopen2(m_fileId, m_currentDatasetKey.toUtf8().constData(), H5P_DEFAULT);
-  hid_t space = H5Dget_space(dset);
-  hsize_t offset[3] = {0, 0, 0};
-  hsize_t count[3] = {1, (hsize_t)m_xres, (hsize_t)m_yres};
-  H5Sselect_hyperslab(space, H5S_SELECT_SET, offset, nullptr, count, nullptr);
-  hid_t memsp = H5Screate_simple(3, count, nullptr);
-  H5Dread(dset, H5T_NATIVE_FLOAT, memsp, space, H5P_DEFAULT, all.data());
-  H5Sclose(memsp);
-  H5Sclose(space);
-  H5Dclose(dset);
-
-  size_t N = all.size();
-  if (N == 0) {
-    m_lowerValue = 0.0f;
-    m_upperValue = 1.0f;
-    return;
-  }
-
-  size_t lo = size_t((m_percentileLow / 100.0f) * (N - 1) + 0.5f);
-  size_t hi = size_t((m_percentileHigh / 100.0f) * (N - 1) + 0.5f);
-  lo = std::clamp(lo, size_t(0), N - 1);
-  hi = std::clamp(hi, size_t(0), N - 1);
-
-  std::nth_element(all.begin(), all.begin() + lo, all.end());
-  m_lowerValue = all[lo];
-  std::nth_element(all.begin(), all.begin() + hi, all.end());
-  m_upperValue = all[hi];
-
-  if (m_lowerValue == m_upperValue) {
-    m_lowerValue = std::numeric_limits<float>::max();
-    m_upperValue = 0.0f;
-    for (float v : all) {
-      m_lowerValue = std::min(m_lowerValue, v);
-      m_upperValue = std::max(m_upperValue, v);
-    }
-  }
-
-  qInfo() << "Computed percentiles for" << m_currentDatasetKey << ": ["
-          << m_lowerValue << ", " << m_upperValue << "] from" << m_percentileLow
-          << "% to" << m_percentileHigh << "%";
-}
-
-void RotationFrameLoader::startLoading(const QString &imageDirectory,
-                                       int fileNumber,
-                                       const QString &datasetKey,
-                                       float percentileLow,
-                                       float percentileHigh, int colormapIdx,
-                                       int fps, bool keepPercentiles) {
-  // stop old timer & close old file
-  if (m_timer) {
-    m_timer->stop();
-    m_timer->deleteLater();
-    m_timer = nullptr;
-  }
-  if (m_fileId >= 0) {
-    H5Fclose(m_fileId);
-    m_fileId = -1;
-  }
-
-  // stash parameters
-  m_imageDirectory = imageDirectory;
-  m_currentFileNumber = fileNumber;
-  m_currentDatasetKey = datasetKey;
-  m_percentileLow = percentileLow;
-  m_percentileHigh = percentileHigh;
-  setColormap(colormapIdx);
-
-  // build full path
-  QString path = m_imageDirectory + "image_" +
-                 QString::number(m_currentFileNumber) + ".hdf5";
-  if (!QFile::exists(path))
-    return;
-  if (H5Fis_hdf5(path.toUtf8().constData()) <= 0)
-    return;
-
-  // open HDF5
-  m_fileId = H5Fopen(path.toUtf8().constData(), H5F_ACC_RDONLY, H5P_DEFAULT);
-  if (m_fileId < 0)
-    return;
-
-  // query dims
-  hid_t dset =
-      H5Dopen2(m_fileId, m_currentDatasetKey.toUtf8().constData(), H5P_DEFAULT);
-  hid_t space = H5Dget_space(dset);
-  hsize_t dims[3];
-  H5Sget_simple_extent_dims(space, dims, nullptr);
-  m_nFrames = int(dims[0]);
-  m_xres = int(dims[1]);
-  m_yres = int(dims[2]);
-  H5Sclose(space);
-  H5Dclose(dset);
-
-  // pre-compute percentiles but only if we are not keeping the last ones (i.e.
-  // if the knob is being turned)
-  if (!keepPercentiles) {
-    computePercentiles();
-  }
-
-  // timer for subsequent frames
-  m_timer = new QTimer(this);
-  m_timer->setInterval(1000 / fps);
-  connect(m_timer, &QTimer::timeout, this,
-          &RotationFrameLoader::nextRotationFrame);
-  m_timer->start();
-}
-
 void RotationFrameLoader::nextRotationFrame() {
-  if (m_fileId < 0 || m_nFrames <= 0)
+  if (m_dsetId < 0 || m_nFrames <= 0)
     return;
 
-  // increment frame index
   m_currentRotationFrame = (m_currentRotationFrame + 1) % m_nFrames;
-
-  // load the next frame
   loadNextFrame();
 }
 
 void RotationFrameLoader::loadNextFrame() {
-  if (m_fileId < 0 || m_nFrames <= 0)
+  if (m_dsetId < 0 || m_nFrames <= 0)
     return;
 
-  // read one slice
-  hid_t dset =
-      H5Dopen2(m_fileId, m_currentDatasetKey.toUtf8().constData(), H5P_DEFAULT);
-  hid_t space = H5Dget_space(dset);
-
+  // read current slice
   hsize_t offset[3] = {(hsize_t)m_currentRotationFrame, 0, 0};
-  hsize_t count[3] = {1, (hsize_t)m_xres, (hsize_t)m_yres};
-  H5Sselect_hyperslab(space, H5S_SELECT_SET, offset, nullptr, count, nullptr);
-  hid_t memsp = H5Screate_simple(3, count, nullptr);
+  H5Sselect_hyperslab(m_fileSpace, H5S_SELECT_SET, offset, nullptr,
+                      (hsize_t[]){1, (hsize_t)m_xres, (hsize_t)m_yres},
+                      nullptr);
+  H5Dread(m_dsetId, H5T_NATIVE_FLOAT, m_memSpace, m_fileSpace, H5P_DEFAULT,
+          m_buf.data());
 
-  std::vector<float> buf(size_t(m_xres) * m_yres);
-  H5Dread(dset, H5T_NATIVE_FLOAT, memsp, space, H5P_DEFAULT, buf.data());
-
-  H5Sclose(memsp);
-  H5Sclose(space);
-  H5Dclose(dset);
-
-  // build RGB image
-  QImage img(m_xres, m_yres, QImage::Format_RGB888);
+  // apply colormap into m_img
   float range = m_upperValue - m_lowerValue;
-  if (range <= 0.0f)
+  if (range <= 0)
     range = 1.0f;
 
   for (int y = 0; y < m_yres; ++y) {
-    uchar *line = img.scanLine(y);
+    uchar *line = m_img.scanLine(y);
     for (int x = 0; x < m_xres; ++x) {
-      float v = buf[y * m_xres + x];
-      if (v == 0.0f) {
-        line[x * 3 + 0] = 0;
-        line[x * 3 + 1] = 0;
-        line[x * 3 + 2] = 0;
+      float v = m_buf[y * m_xres + x];
+      if (v <= 0.0f) {
+        line[3 * x + 0] = line[3 * x + 1] = line[3 * x + 2] = 0;
       } else {
         float norm = (v - m_lowerValue) / range;
         norm = std::clamp(norm, 0.0f, 1.0f);
         int idx = int(norm * (m_cmap_size - 1) + 0.5f);
-        idx = std::clamp(idx, 0, int(m_cmap_size - 1));
-        const uint8_t *rgb = m_cmap[idx];
-        line[x * 3 + 0] = rgb[0];
-        line[x * 3 + 1] = rgb[1];
-        line[x * 3 + 2] = rgb[2];
+        const uint8_t *rgb = m_cmap[std::clamp(idx, 0, int(m_cmap_size - 1))];
+        line[3 * x + 0] = rgb[0];
+        line[3 * x + 1] = rgb[1];
+        line[3 * x + 2] = rgb[2];
       }
     }
   }
 
-  emit frameReady(img, m_currentFileNumber, m_currentRotationFrame, m_nFrames);
+  emit frameReady(m_img, m_currentFileNumber, m_currentRotationFrame,
+                  m_nFrames);
 }

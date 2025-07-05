@@ -155,15 +155,14 @@ void VizTabWidget::setCurrentFileNumberKnob(int idx) {
   idx = std::clamp(idx, 0, m_latestFileNumber);
   if (idx == m_currentFileNumber)
     return;
+
   m_currentFileNumber = idx;
 
-  // Advance the rotation frame
-  m_currentRotationFrame = (m_currentRotationFrame + 1) % m_nFrames;
-
-  // restart loader
-  emit startLoader(m_imageDirectory, m_currentFileNumber, m_currentDatasetKey,
-                   m_percentileLow, m_percentileHigh, int(m_colormap), m_fps,
-                   true);
+  // Simply swap files under the continuing rotation clock:
+  QMetaObject::invokeMethod(m_loader, "jumpToFile", Qt::QueuedConnection,
+                            Q_ARG(int, m_currentFileNumber),
+                            Q_ARG(bool, true) // keepPercentiles
+  );
 }
 
 void VizTabWidget::setDatasetKey(const QString &key) {
