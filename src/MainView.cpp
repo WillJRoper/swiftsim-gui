@@ -45,7 +45,7 @@ MainWindow::MainWindow(SimulationController *simCtrl,
   createProgressBar();
   createPlots();
   createDataWatcher();
-  createSerialHandler("/dev/cu.usbmodem3301");
+  createSerialHandler("/dev/cu.usbmodem2101");
   createVisualisations();
   createCounters();
 
@@ -203,6 +203,16 @@ void MainWindow::createActions() {
           &VizTabWidget::fastForwardTime);
   connect(m_serialHandler, &SerialHandler::rotatedCCW, m_vizTab,
           &VizTabWidget::rewindTime);
+
+  // Reset idle timer on any button press:
+  connect(m_serialHandler, &SerialHandler::buttonPressed, m_vizTab,
+          &VizTabWidget::resetIdleTimer);
+
+  // Reset idle timer on any knob turn:
+  connect(m_serialHandler, &SerialHandler::rotatedCW, m_vizTab,
+          &VizTabWidget::resetIdleTimer);
+  connect(m_serialHandler, &SerialHandler::rotatedCCW, m_vizTab,
+          &VizTabWidget::resetIdleTimer);
 }
 
 /**

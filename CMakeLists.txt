@@ -61,6 +61,7 @@ set(SOURCES
     src/PlotWidget.cpp
     src/ImageProgressWidget.cpp
     src/SerialHandler.cpp
+    src/RotationFrameLoader.cpp
 )
 
 set(HEADERS
@@ -77,6 +78,7 @@ set(HEADERS
     src/PlotWidget.h
     src/ImageProgressWidget.h
     src/SerialHandler.h
+    src/RotationFrameLoader.h
 )
 
 # ─── QRCs ────────────────────────────────────────────────

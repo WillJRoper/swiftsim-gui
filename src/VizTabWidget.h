@@ -1,5 +1,6 @@
 #pragma once
 
+#include "RotationFrameLoader.h"
 #include "ScaledPixmapLabel.h"
 #include "colormaps.h"
 #include <QFileSystemWatcher>
@@ -10,43 +11,6 @@
 #include <QTimer>
 #include <QWidget>
 #include <hdf5.h>
-
-class RotationFrameLoader : public QObject {
-  Q_OBJECT
-public slots:
-  /// Kick off (or restart) loading for a given file/dataset/percentile/fps
-  void startLoading(const QString &imageDirectory, int fileNumber,
-                    const QString &datasetKey, float percentileLow,
-                    float percentileHigh, int colormapIdx, int fps);
-
-signals:
-  /// Emitted whenever a new rotation frame is ready
-  void frameReady(const QImage &img, int fileNumber, int frameIndex,
-                  int totalFrames);
-
-private slots:
-  void loadNextFrame();
-
-private:
-  hid_t m_fileId = -1;
-  QString m_imageDirectory;
-  QString m_currentDatasetKey;
-  int m_currentFileNumber = -1;
-  float m_percentileLow = 5.0f;
-  float m_percentileHigh = 99.99f;
-  float m_lowerValue = 0.0f;
-  float m_upperValue = 1.0f;
-  int m_nFrames = 0;
-  int m_xres = 0;
-  int m_yres = 0;
-  const uint8_t (*m_cmap)[3] = nullptr;
-  size_t m_cmap_size = 0;
-  int m_currentRotationFrame = 0;
-  QTimer *m_timer = nullptr;
-
-  void computePercentiles();
-  void setColormap(int colormapIdx);
-};
 
 class VizTabWidget : public QWidget {
   Q_OBJECT
@@ -71,6 +35,10 @@ public slots:
   /// Instruct loader to jump to a given file index (0…latest)
   void setCurrentFileNumber(int index);
 
+  /// Increment the current file number and load the next file but without
+  /// recomputing percentiles
+  void setCurrentFileNumberKnob(int index);
+
   /// Adjust low/high percentile
   void setPercentileRange(float low, float high);
 
@@ -83,6 +51,12 @@ public slots:
   /// Fast forward time by a delta
   void fastForwardTime(int delta);
 
+  /**
+   * @brief Restart the idle timer (e.g., on any user interaction).
+   *        Exposed as a public slot so it can be triggered externally.
+   */
+  void resetIdleTimer();
+
 protected:
   void resizeEvent(QResizeEvent *ev) override;
   void keyPressEvent(QKeyEvent *evt) override;
@@ -91,13 +65,23 @@ signals:
   /// Internal: start or restart the loader thread
   void startLoader(const QString &imageDirectory, int fileNumber,
                    const QString &datasetKey, float percentileLow,
-                   float percentileHigh, int colormapIdx, int fps);
+                   float percentileHigh, int colormapIdx, int fps,
+                   bool keepPercentiles);
 
 private slots:
   void handleFrameReady(const QImage &img, int fileNumber, int frameIndex,
                         int totalFrames);
   void onImageDirectoryChanged(const QString &path);
+
+  /**
+   * @brief Applies accumulated delta after debounce interval.
+   */
   void applyPendingDelta();
+
+  /**
+   * @brief Resets visualization to the latest frame after idle period.
+   */
+  void resetToLatest();
 
 private:
   void scanImageDirectory();
@@ -152,4 +136,7 @@ private:
   // pending time delta for rewinding/fast-forwarding and debouncing timer
   int m_pendingDelta = 0;
   QTimer m_debounceTimer;
+
+  // idle reset timer
+  QTimer m_idleTimer;
 };
