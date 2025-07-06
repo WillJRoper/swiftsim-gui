@@ -166,6 +166,10 @@ void RotationFrameLoader::setColormap(int colormapIdx) {
     m_cmap = inferno_colormap_colormap;
     m_cmap_size = inferno_colormap_colormap_size;
     break;
+  case int(VizTabWidget::Colormap::SpeakNow):
+    m_cmap = speaknow_colormap;
+    m_cmap_size = speaknow_colormap_size;
+    break;
   case int(VizTabWidget::Colormap::Greyscale):
   default:
     m_cmap = greyscale_colormap_colormap;

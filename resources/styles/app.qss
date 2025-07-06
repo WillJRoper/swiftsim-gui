@@ -22,8 +22,8 @@ QMenuBar::item:selected,
 QMenu::item:selected,
 QPushButton:hover,
 QTabBar::tab:selected {
-  color: #E50000 !important;
-  border-color: #E50000 !important;
+  color: #D51317 !important;
+  border-color: #D51317 !important;
 }
 
 /* ─── QMainWindow central widget ───────────────────────────────────── */
@@ -85,7 +85,7 @@ QTabBar::tab {
 }
 QTabBar::tab:selected {
   background: #222;
-  color: #E50000;
+  color: #D51317;
 }
 QTabBar::tab:hover {
   background: #222;
@@ -99,7 +99,7 @@ QLineEdit, QTextEdit, QPlainTextEdit {
   background-color: #111;
   border: 1px solid #444;
   border-radius: 4px;
-  selection-background-color: #E50000;
+  selection-background-color: #D51317;
   selection-color: black;
 }
 
@@ -134,7 +134,7 @@ QProgressBar {
 }
 
 QProgressBar::chunk {
-  background-color: #E50000;
+  background-color: #D51317;
   border-radius: 4px;
 }
 
@@ -142,13 +142,13 @@ QProgressBar::chunk {
 /* ─── Seven-segment display (QLCDNumber) ───────────────────── */
 QLCDNumber {
     background-color: transparent;        /* deep black */
-    color: rgba(229, 0, 0, 180);                /* HAL-red segments */
+    color: rgba(213, 19, 23, 180);                /* HAL-red segments */
     padding: 2px;                  /* a tiny inner margin */
 }
 
 /* ─── Prefix label (“Step:”) ───────────────────────────────── */
 StepCounterWidget QLabel {
-    color: rgba(229, 0, 0, 180);                /* match the LCD’s red */
+    color: rgba(213, 19, 23, 180);                /* match the LCD’s red */
     font-size: 72px;               /* adjust to taste */
     padding-right: 4px;            /* space before the digits */
 }

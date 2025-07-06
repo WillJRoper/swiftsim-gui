@@ -49,7 +49,7 @@ StepCounterWidget::StepCounterWidget(const QString &title, QWidget *parent,
   setStep(0);
 }
 
-void StepCounterWidget::setStep(int step) {
+void StepCounterWidget::setStep(long long step) {
   // How many digits do we need to display this step?
   int stepDigits = QString::number(step).length();
 

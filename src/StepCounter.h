@@ -24,7 +24,7 @@ public:
                              int digitCount = 7);
 
   /// @brief Update the displayed step (with leading zeros).
-  void setStep(int step);
+  void setStep(long long step);
 
   /**
    * @brief Expand the number of digits in the step counter.

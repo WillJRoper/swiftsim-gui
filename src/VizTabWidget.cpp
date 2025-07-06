@@ -5,9 +5,11 @@
 #include <QFile>
 #include <QFileInfoList>
 #include <QGraphicsOpacityEffect>
+#include <QInputDialog>
 #include <QKeyEvent>
 #include <QMetaObject>
 #include <QRegularExpression>
+#include <QShortcut>
 #include <QVBoxLayout>
 #include <algorithm>
 
@@ -35,41 +37,44 @@ VizTabWidget::VizTabWidget(QWidget *parent)
   // Then the image expands to fill
   lay->addWidget(m_imageLabel, /*stretch=*/1);
 
-  // --- bottom-right SWIFT logo ---
-  m_logoOrig = QPixmap(":/images/swift-logo-white.png");
-  m_logoLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
-  m_logoLabel->setStyleSheet("background:transparent;");
-  m_logoLabel->show();
-  auto *swiftOpacity = new QGraphicsOpacityEffect(this);
-  swiftOpacity->setOpacity(0.75);
-  m_logoLabel->setGraphicsEffect(swiftOpacity);
+  // These are turned off for now, in favour of logos on walls around the
+  // exhibit
 
-  // --- top-left Flamingo logo ---
-  m_flamingoOrig = QPixmap(":/images/flamingo-logo.png");
-  m_flamingoLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
-  m_flamingoLabel->setStyleSheet("background:transparent;");
-  m_flamingoLabel->show();
-  auto *flamingoOpacity = new QGraphicsOpacityEffect(this);
-  flamingoOpacity->setOpacity(0.75);
-  m_flamingoLabel->setGraphicsEffect(flamingoOpacity);
-
-  // --- bottom-left Sussex logo ---
-  m_sussexOrig = QPixmap(":/images/sussex-logo.png");
-  m_sussexLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
-  m_sussexLabel->setStyleSheet("background:transparent;");
-  m_sussexLabel->show();
-  auto *sussexOpacity = new QGraphicsOpacityEffect(this);
-  sussexOpacity->setOpacity(0.75);
-  m_sussexLabel->setGraphicsEffect(sussexOpacity);
-
-  // --- top-right ESA logo ---
-  m_esaOrig = QPixmap(":/images/ESA.png");
-  m_esaLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
-  m_esaLabel->setStyleSheet("background:transparent;");
-  m_esaLabel->show();
-  auto *esaOpacity = new QGraphicsOpacityEffect(this);
-  esaOpacity->setOpacity(0.75);
-  m_esaLabel->setGraphicsEffect(esaOpacity);
+  // // --- bottom-right SWIFT logo ---
+  // m_logoOrig = QPixmap(":/images/swift-logo-white.png");
+  // m_logoLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+  // m_logoLabel->setStyleSheet("background:transparent;");
+  // m_logoLabel->show();
+  // auto *swiftOpacity = new QGraphicsOpacityEffect(this);
+  // swiftOpacity->setOpacity(0.75);
+  // m_logoLabel->setGraphicsEffect(swiftOpacity);
+  //
+  // // --- top-left Flamingo logo ---
+  // m_flamingoOrig = QPixmap(":/images/flamingo-logo.png");
+  // m_flamingoLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+  // m_flamingoLabel->setStyleSheet("background:transparent;");
+  // m_flamingoLabel->show();
+  // auto *flamingoOpacity = new QGraphicsOpacityEffect(this);
+  // flamingoOpacity->setOpacity(0.75);
+  // m_flamingoLabel->setGraphicsEffect(flamingoOpacity);
+  //
+  // // --- bottom-left Sussex logo ---
+  // m_sussexOrig = QPixmap(":/images/sussex-logo.png");
+  // m_sussexLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+  // m_sussexLabel->setStyleSheet("background:transparent;");
+  // m_sussexLabel->show();
+  // auto *sussexOpacity = new QGraphicsOpacityEffect(this);
+  // sussexOpacity->setOpacity(0.75);
+  // m_sussexLabel->setGraphicsEffect(sussexOpacity);
+  //
+  // // --- top-right ESA logo ---
+  // m_esaOrig = QPixmap(":/images/ESA.png");
+  // m_esaLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+  // m_esaLabel->setStyleSheet("background:transparent;");
+  // m_esaLabel->show();
+  // auto *esaOpacity = new QGraphicsOpacityEffect(this);
+  // esaOpacity->setOpacity(0.75);
+  // m_esaLabel->setGraphicsEffect(esaOpacity);
 
   // directory watcher
   connect(&m_dirWatcher, &QFileSystemWatcher::directoryChanged, this,
@@ -176,7 +181,7 @@ void VizTabWidget::setDatasetKey(const QString &key) {
     m_colormap = Colormap::Magma;
     setTitle(tr("Gas"));
   } else if (key == "stars") {
-    m_colormap = Colormap::Greyscale;
+    m_colormap = Colormap::SpeakNow;
     setTitle(tr("Stars"));
   } else if (key == "gas_temperature") {
     m_colormap = Colormap::Inferno;
@@ -242,61 +247,66 @@ void VizTabWidget::handleFrameReady(const QImage &img, int fileNumber,
 void VizTabWidget::resizeEvent(QResizeEvent *ev) {
   QWidget::resizeEvent(ev);
 
-  // --- bottom-right Swift logo (~15% height) ---
-  {
-    int maxH = height() * m_swiftSizePercent / 100;
-    QSize tgt(maxH * m_logoOrig.width() / m_logoOrig.height(), maxH);
-    QPixmap scaled =
-        m_logoOrig.scaled(tgt, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-    m_logoLabel->setPixmap(scaled);
-    m_logoLabel->setFixedSize(scaled.size());
-    int x = width() - scaled.width() - m_swiftXMargin;
-    int y = height() - scaled.height() - m_swiftYMargin;
-    m_logoLabel->move(x, y);
-    m_logoLabel->raise();
-  }
+  // These are turned off for now, in favour of logos on walls around the
+  // exhibit
 
-  // --- top-left Flamingo logo (~20% height) ---
-  {
-    int maxH = height() * m_flamingoSizePercent / 100;
-    QSize tgt(maxH * m_flamingoOrig.width() / m_flamingoOrig.height(), maxH);
-    QPixmap scaled = m_flamingoOrig.scaled(tgt, Qt::KeepAspectRatio,
-                                           Qt::SmoothTransformation);
-    m_flamingoLabel->setPixmap(scaled);
-    m_flamingoLabel->setFixedSize(scaled.size());
-    int x = m_flamingoXMargin;
-    int y = m_flamingoYMargin;
-    m_flamingoLabel->move(x, y);
-    m_flamingoLabel->raise();
-  }
-
-  // --- bottom-left Sussex logo (~10% height) ---
-  {
-    int maxH = height() * m_sussexSizePercent / 100;
-    QSize tgt(maxH * m_sussexOrig.width() / m_sussexOrig.height(), maxH);
-    QPixmap scaled =
-        m_sussexOrig.scaled(tgt, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-    m_sussexLabel->setPixmap(scaled);
-    m_sussexLabel->setFixedSize(scaled.size());
-    int x = m_sussexXMargin;
-    int y = height() - scaled.height() - m_sussexYMargin;
-    m_sussexLabel->move(x, y);
-    m_sussexLabel->raise();
-  }
-
-  // --- top-right ESA logo (~15% height) ---
-  {
-    int maxH = height() * m_esaSizePercent / 100;
-    QSize tgt(maxH * m_esaOrig.width() / m_esaOrig.height(), maxH);
-    QPixmap scaled =
-        m_esaOrig.scaled(tgt, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-    m_esaLabel->setPixmap(scaled);
-    m_esaLabel->setFixedSize(scaled.size());
-    int x = width() - scaled.width() - m_esaXMargin;
-    int y = m_esaYMargin;
-    m_esaLabel->move(x, y);
-    m_esaLabel->raise();
-  }
+  // // --- bottom-right Swift logo (~15% height) ---
+  // {
+  //   int maxH = height() * m_swiftSizePercent / 100;
+  //   QSize tgt(maxH * m_logoOrig.width() / m_logoOrig.height(), maxH);
+  //   QPixmap scaled =
+  //       m_logoOrig.scaled(tgt, Qt::KeepAspectRatio,
+  //       Qt::SmoothTransformation);
+  //   m_logoLabel->setPixmap(scaled);
+  //   m_logoLabel->setFixedSize(scaled.size());
+  //   int x = width() - scaled.width() - m_swiftXMargin;
+  //   int y = height() - scaled.height() - m_swiftYMargin;
+  //   m_logoLabel->move(x, y);
+  //   m_logoLabel->raise();
+  // }
+  //
+  // // --- top-left Flamingo logo (~20% height) ---
+  // {
+  //   int maxH = height() * m_flamingoSizePercent / 100;
+  //   QSize tgt(maxH * m_flamingoOrig.width() / m_flamingoOrig.height(), maxH);
+  //   QPixmap scaled = m_flamingoOrig.scaled(tgt, Qt::KeepAspectRatio,
+  //                                          Qt::SmoothTransformation);
+  //   m_flamingoLabel->setPixmap(scaled);
+  //   m_flamingoLabel->setFixedSize(scaled.size());
+  //   int x = m_flamingoXMargin;
+  //   int y = m_flamingoYMargin;
+  //   m_flamingoLabel->move(x, y);
+  //   m_flamingoLabel->raise();
+  // }
+  //
+  // // --- bottom-left Sussex logo (~10% height) ---
+  // {
+  //   int maxH = height() * m_sussexSizePercent / 100;
+  //   QSize tgt(maxH * m_sussexOrig.width() / m_sussexOrig.height(), maxH);
+  //   QPixmap scaled =
+  //       m_sussexOrig.scaled(tgt, Qt::KeepAspectRatio,
+  //       Qt::SmoothTransformation);
+  //   m_sussexLabel->setPixmap(scaled);
+  //   m_sussexLabel->setFixedSize(scaled.size());
+  //   int x = m_sussexXMargin;
+  //   int y = height() - scaled.height() - m_sussexYMargin;
+  //   m_sussexLabel->move(x, y);
+  //   m_sussexLabel->raise();
+  // }
+  //
+  // // --- top-right ESA logo (~15% height) ---
+  // {
+  //   int maxH = height() * m_esaSizePercent / 100;
+  //   QSize tgt(maxH * m_esaOrig.width() / m_esaOrig.height(), maxH);
+  //   QPixmap scaled =
+  //       m_esaOrig.scaled(tgt, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+  //   m_esaLabel->setPixmap(scaled);
+  //   m_esaLabel->setFixedSize(scaled.size());
+  //   int x = width() - scaled.width() - m_esaXMargin;
+  //   int y = m_esaYMargin;
+  //   m_esaLabel->move(x, y);
+  //   m_esaLabel->raise();
+  // }
 }
 
 void VizTabWidget::onImageDirectoryChanged(const QString &) {
@@ -309,12 +319,12 @@ void VizTabWidget::setTitle(const QString &text) {
 
 // Instead of immediately changing file number, add to pending and restart timer
 void VizTabWidget::rewindTime(int delta) {
-  m_pendingDelta -= delta;
-  m_debounceTimer.start(); // restart countdown
+  m_pendingDelta -= delta / m_deltaScaler; // scale down for smoother control
+  m_debounceTimer.start();                 // restart countdown
 }
 
 void VizTabWidget::fastForwardTime(int delta) {
-  m_pendingDelta += delta;
+  m_pendingDelta += delta / m_deltaScaler; // scale down for smoother control
   m_debounceTimer.start();
 }
 
@@ -323,9 +333,17 @@ void VizTabWidget::applyPendingDelta() {
   if (m_pendingDelta == 0)
     return;
 
+  // Combine any previous remaining pending delta
+  m_pendingDelta += m_tickRemainder;
+  m_tickRemainder = 0;
+
+  // Convert pending delta to integer and remember the remainder
+  int deltaInt = static_cast<int>(m_pendingDelta);
+  m_tickRemainder = m_pendingDelta - deltaInt;
+
   // compute new clamped file number
   int newFileNumber =
-      std::clamp(m_currentFileNumber + m_pendingDelta, 0, m_latestFileNumber);
+      std::clamp(m_currentFileNumber + deltaInt, 0, m_latestFileNumber);
 
   // apply and reset
   setCurrentFileNumberKnob(newFileNumber);
@@ -340,4 +358,32 @@ void VizTabWidget::resetToLatest() {
 
   // Restart idle timer for next reset
   resetIdleTimer();
+}
+
+void VizTabWidget::promptLowPercentile() {
+  bool ok = false;
+  qInfo() << "Current low percentile:" << m_percentileLow;
+  double newLow =
+      QInputDialog::getDouble(this, tr("Set Low Percentile"), tr("Low (%):"),
+                              m_percentileLow, // current value
+                              0.0,             // min
+                              100.0,           // max
+                              5,               // decimals
+                              &ok);
+  if (ok) {
+    setPercentileRange(static_cast<float>(newLow), m_percentileHigh);
+  }
+  qInfo() << "New low percentile set to:" << newLow;
+}
+
+void VizTabWidget::promptHighPercentile() {
+  bool ok = false;
+  qInfo() << "Current high percentile:" << m_percentileHigh;
+  double newHigh =
+      QInputDialog::getDouble(this, tr("Set High Percentile"), tr("High (%):"),
+                              m_percentileHigh, 0.0, 100.0, 5, &ok);
+  if (ok) {
+    setPercentileRange(m_percentileLow, static_cast<float>(newHigh));
+  }
+  qInfo() << "New high percentile set to:" << newHigh;
 }

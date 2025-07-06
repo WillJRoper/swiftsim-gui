@@ -16,7 +16,15 @@ class VizTabWidget : public QWidget {
   Q_OBJECT
 
 public:
-  enum class Colormap { Plasma, Magma, Viridis, Jet, Inferno, Greyscale };
+  enum class Colormap {
+    Plasma,
+    Magma,
+    Viridis,
+    Jet,
+    Inferno,
+    Greyscale,
+    SpeakNow
+  };
   Q_ENUM(Colormap)
 
   explicit VizTabWidget(QWidget *parent = nullptr);
@@ -56,6 +64,9 @@ public slots:
    *        Exposed as a public slot so it can be triggered externally.
    */
   void resetIdleTimer();
+
+  void promptLowPercentile();
+  void promptHighPercentile();
 
 protected:
   void resizeEvent(QResizeEvent *ev) override;
@@ -134,8 +145,10 @@ private:
   Colormap m_colormap = Colormap::Plasma;
 
   // pending time delta for rewinding/fast-forwarding and debouncing timer
-  int m_pendingDelta = 0;
+  double m_pendingDelta = 0;
   QTimer m_debounceTimer;
+  double m_deltaScaler = 4; // How many physical knob ticks make a logical tick
+  double m_tickRemainder = 0; // Remaining fractional logical ticks
 
   // idle reset timer
   QTimer m_idleTimer;

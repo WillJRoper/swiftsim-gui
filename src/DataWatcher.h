@@ -68,7 +68,7 @@ signals:
 
   // ─── Totals from sums we do ────────────────────────────────
   void totalWallClockTimeChanged(double totalTime);
-  void totalPartUpdatesChanged(int totalUpdates);
+  void totalPartUpdatesChanged(long long totalUpdates);
 
 private:
   QString m_filePath;            ///< Path to gui_data.txt

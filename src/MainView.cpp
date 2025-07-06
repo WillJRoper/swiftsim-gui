@@ -213,6 +213,27 @@ void MainWindow::createActions() {
           &VizTabWidget::resetIdleTimer);
   connect(m_serialHandler, &SerialHandler::rotatedCCW, m_vizTab,
           &VizTabWidget::resetIdleTimer);
+
+  // ─── Edit low‐percentile (“[”) ────────────────────────────────
+  QAction *editLowPct = new QAction(tr("Edit Low Percentile"), this);
+  editLowPct->setShortcut(QKeySequence(Qt::Key_BracketLeft));
+  editLowPct->setShortcutContext(Qt::ApplicationShortcut);
+  connect(editLowPct, &QAction::triggered, this, [this] {
+    // switch to Visualise tab if not already there:
+    m_bottomWidget->setCurrentIndex(2);
+    m_vizTab->promptLowPercentile();
+  });
+  addAction(editLowPct);
+
+  // ─── Edit high‐percentile (“]”) ───────────────────────────────
+  QAction *editHighPct = new QAction(tr("Edit High Percentile"), this);
+  editHighPct->setShortcut(QKeySequence(Qt::Key_BracketRight));
+  editHighPct->setShortcutContext(Qt::ApplicationShortcut);
+  connect(editHighPct, &QAction::triggered, this, [this] {
+    m_bottomWidget->setCurrentIndex(2);
+    m_vizTab->promptHighPercentile();
+  });
+  addAction(editHighPct);
 }
 
 /**
@@ -455,7 +476,9 @@ void MainWindow::rotateTopPage() {
   m_topStack->setCurrentIndex(next);
 }
 
-void MainWindow::updateStepCounter(int step) { m_stepCounter->setStep(step); }
+void MainWindow::updateStepCounter(long long step) {
+  m_stepCounter->setStep(step);
+}
 
 void MainWindow::updateWallClockCounter(double t) {
   // Convert seconds to hours
@@ -469,11 +492,12 @@ void MainWindow::updateStarsFormedCounter(double mass) {
   m_starsFormedCounter->setStep(count);
 }
 
-void MainWindow::updateBlackHolesFormedCounter(int count) {
+void MainWindow::updateBlackHolesFormedCounter(long long count) {
   m_blackHolesFormedCounter->setStep(count);
 }
 
-void MainWindow::updateParticleUpdateCounter(int count) {
+void MainWindow::updateParticleUpdateCounter(long long count) {
+  qInfo() << "Updating particle update counter with count:" << count;
   m_ParticleUpdateCounter->setStep(count);
 }
 

@@ -8,8 +8,7 @@ from astropy.units import Gyr
 
 plt.rcParams["font.family"] = "Eurostile Extended"
 
-# HAL-red RGB normalized
-HAL_RED = (229 / 255, 0, 0)
+HAL_RED = (213 / 255, 19 / 255, 23 / 255)
 
 LINESTYLES = ["-", "--", "-.", ":"]
 

@@ -75,11 +75,11 @@ private:
   // Functions for updating UI elements
   void updateProgressBar(double percent);
   void updateCurrentTimeLabel(double t);
-  void updateStepCounter(int step);
+  void updateStepCounter(long long step);
   void updateWallClockCounter(double t);
   void updateStarsFormedCounter(double mass);
-  void updateBlackHolesFormedCounter(int count);
-  void updateParticleUpdateCounter(int count);
+  void updateBlackHolesFormedCounter(long long count);
+  void updateParticleUpdateCounter(long long count);
   void buttonUpdateUI(int id);
 
   // Plots

@@ -105,7 +105,7 @@ void DataWatcher::updateData() {
 
     // Sum up the wall-clock time
     double totalTime = 0.0;
-    int totalUpdates = 0;
+    long long totalUpdates = 0;
     for (const QString &line : lines) {
       QStringList cols =
           line.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
