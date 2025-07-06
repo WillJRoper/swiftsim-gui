@@ -96,7 +96,7 @@ VizTabWidget::VizTabWidget(QWidget *parent)
           &VizTabWidget::applyPendingDelta);
 
   // Idle timer setup (reset to latest after inactivity)
-  constexpr int IDLE_MS = 2 * 60 * 1000; // 2 minutes
+  constexpr int IDLE_MS = 2 * 60 * 1000;
   m_idleTimer.setSingleShot(true);
   m_idleTimer.setInterval(IDLE_MS);
   connect(&m_idleTimer, &QTimer::timeout, this, &VizTabWidget::resetToLatest);

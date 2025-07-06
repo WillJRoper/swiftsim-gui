@@ -78,4 +78,8 @@ private:
   // buffers
   std::vector<float> m_buf;
   QImage m_img;
+
+  // Current step and age values
+  int m_currentStep = 0;
+  double m_currentAge = 0.0; // in Gyrs
 };

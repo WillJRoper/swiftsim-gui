@@ -77,6 +77,32 @@ void RotationFrameLoader::startLoading(const QString &imageDirectory,
       H5Dopen2(m_fileId, m_currentDatasetKey.toUtf8().constData(), H5P_DEFAULT);
   m_fileSpace = H5Dget_space(m_dsetId);
 
+  // Read the step and age attributes from the root group
+  hid_t rootGroup = H5Gopen2(m_fileId, "/", H5P_DEFAULT);
+  if (rootGroup >= 0) {
+    hid_t stepAttr = H5Aopen_name(rootGroup, "step");
+    if (stepAttr >= 0) {
+      H5Aread(stepAttr, H5T_NATIVE_INT, &m_currentStep);
+      H5Aclose(stepAttr);
+      qInfo() << "Loaded step attribute:" << m_currentStep;
+    } else {
+      qWarning() << "Failed to read 'step' attribute.";
+    }
+
+    hid_t ageAttr = H5Aopen_name(rootGroup, "age");
+    if (ageAttr >= 0) {
+      H5Aread(ageAttr, H5T_NATIVE_DOUBLE, &m_currentAge);
+      H5Aclose(ageAttr);
+      qInfo() << "Loaded age attribute:" << m_currentAge << "Gyrs";
+    } else {
+      qWarning() << "Failed to read 'age' attribute.";
+    }
+
+    H5Gclose(rootGroup);
+  } else {
+    qWarning() << "Failed to open root group.";
+  }
+
   // query full dims [frames, x, y]
   hsize_t fullDims[3];
   H5Sget_simple_extent_dims(m_fileSpace, fullDims, nullptr);
@@ -203,20 +229,44 @@ void RotationFrameLoader::loadNextFrame() {
   if (range <= 0)
     range = 1.0f;
 
+  // pick your stretch strength (higher → more pop in the shadows)
+  constexpr float asinhStretchFactor = 9.0f;
+  // precompute denominator so we only call asinh() once
+  const float asinhNormalizationDenominator = std::asinh(asinhStretchFactor);
+
+  // compute int upper bound for clamp exactly once
+  int maxColorMapIndex = static_cast<int>(m_cmap_size) - 1;
+
   for (int y = 0; y < m_yres; ++y) {
-    uchar *line = m_img.scanLine(y);
+    uchar *scanLine = m_img.scanLine(y);
+
     for (int x = 0; x < m_xres; ++x) {
-      float v = m_buf[y * m_xres + x];
-      if (v <= 0.0f) {
-        line[3 * x + 0] = line[3 * x + 1] = line[3 * x + 2] = 0;
+      float rawBufferValue = m_buf[y * m_xres + x];
+
+      if (rawBufferValue <= 0.0f) {
+        // background
+        scanLine[3 * x + 0] = 0;
+        scanLine[3 * x + 1] = 0;
+        scanLine[3 * x + 2] = 0;
       } else {
-        float norm = (v - m_lowerValue) / range;
-        norm = std::clamp(norm, 0.0f, 1.0f);
-        int idx = int(norm * (m_cmap_size - 1) + 0.5f);
-        const uint8_t *rgb = m_cmap[std::clamp(idx, 0, int(m_cmap_size - 1))];
-        line[3 * x + 0] = rgb[0];
-        line[3 * x + 1] = rgb[1];
-        line[3 * x + 2] = rgb[2];
+        // 1) linear normalize
+        float normalizedValue = (rawBufferValue - m_lowerValue) / range;
+        normalizedValue = std::clamp(normalizedValue, 0.0f, 1.0f);
+
+        // 2) arcsinh stretch
+        float stretchedValue =
+            std::asinh(asinhStretchFactor * normalizedValue) /
+            asinhNormalizationDenominator;
+        stretchedValue = std::clamp(stretchedValue, 0.0f, 1.0f);
+
+        // 3) map into colormap
+        int colorMapIndex = int(stretchedValue * maxColorMapIndex + 0.5f);
+        colorMapIndex = std::clamp(colorMapIndex, 0, maxColorMapIndex);
+
+        const uint8_t *rgbTriplet = m_cmap[colorMapIndex];
+        scanLine[3 * x + 0] = rgbTriplet[0];
+        scanLine[3 * x + 1] = rgbTriplet[1];
+        scanLine[3 * x + 2] = rgbTriplet[2];
       }
     }
   }
