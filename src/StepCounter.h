@@ -18,10 +18,16 @@ public:
   /**
    * @brief Create a counter display.
    * @param title   Text to show above the LCD display, centered.
-   * @param parent  Parent widget (optional).
+   * @param parent  Parent widget (optional)o.
+   * @param digitCount  Number of digits to display (default 7).
+   * @param fontSize  Font size in points (default -1, which uses the default
+   * system font size).
+   * @param white  If true, uses a white font color, if false it will use the
+   * style file which is red (default is false).
    */
   explicit StepCounterWidget(const QString &title, QWidget *parent = nullptr,
-                             int digitCount = 7);
+                             int digitCount = 7, int fontSize = -1,
+                             bool white = false);
 
   /// @brief Update the displayed step (with leading zeros).
   void setStep(long long step);

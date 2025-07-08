@@ -56,22 +56,25 @@ def main():
         linewidth=2,
         label="Dark Matter",
     )
-    plt.plot(
-        df["Time"],
-        df["Nsparts"],
-        color=HAL_RED,
-        linestyle=LINESTYLES[2],
-        linewidth=2,
-        label="Stars",
-    )
-    plt.plot(
-        df["Time"],
-        df["Nbparts"],
-        color=HAL_RED,
-        linestyle=LINESTYLES[3],
-        linewidth=2,
-        label="Black Holes",
-    )
+
+    if df["Nsparts"].sum() > 0:
+        plt.plot(
+            df["Time"],
+            df["Nsparts"],
+            color=HAL_RED,
+            linestyle=LINESTYLES[2],
+            linewidth=2,
+            label="Stars",
+        )
+    if df["Nbparts"].sum() > 0:
+        plt.plot(
+            df["Time"],
+            df["Nbparts"],
+            color=HAL_RED,
+            linestyle=LINESTYLES[3],
+            linewidth=2,
+            label="Black Holes",
+        )
 
     plt.legend(
         facecolor="black",

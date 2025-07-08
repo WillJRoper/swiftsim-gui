@@ -153,6 +153,15 @@ StepCounterWidget QLabel {
     padding-right: 4px;            /* space before the digits */
 }
 
+
+/* overrides for the “white” instances */
+QLCDNumber#lcdWhite {
+    color: rgba(255, 255, 255, 210);
+}
+StepCounterWidget#stepWhite QLabel {
+    color: rgba(255, 255, 255, 210);
+}
+
 /* ─── Log file display (QTextEdit) ─────────────────────── */ 
 QPlainTextEdit#logEditor {
   font-family: "Hack Nerd Font Mono", monospace;
@@ -162,7 +171,7 @@ QPlainTextEdit#logEditor {
 
 QLabel#vizTitleLabel {
     /* control size */
-    font-size: 60pt;               /* tweak until you like it */
+    font-size: 80pt;               /* tweak until you like it */
     padding: 4px 8px;              /* a little breathing space around text */
 
     /* 2001: A Space Odyssey feel */

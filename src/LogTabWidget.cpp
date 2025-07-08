@@ -1,10 +1,12 @@
 #include "LogTabWidget.h"
 #include <QApplication>
 #include <QFile>
+#include <QHideEvent>
 #include <QPaintEvent>
 #include <QPainter>
 #include <QPlainTextEdit>
 #include <QScrollBar>
+#include <QShowEvent>
 #include <QTextStream>
 #include <QVBoxLayout>
 
@@ -114,4 +116,40 @@ void LogTabWidget::paintEvent(QPaintEvent *evt) {
 
   // 3) now paint children (including your transparent textedit on top)
   QWidget::paintEvent(evt);
+}
+
+void LogTabWidget::scrollLogUp(int steps) {
+  if (!isVisible())
+    return;
+  auto *sb = m_textEdit->verticalScrollBar();
+  // e.g. each “step” is one singleStep()
+  sb->setValue(sb->value() - steps * sb->singleStep());
+}
+
+void LogTabWidget::scrollLogDown(int steps) {
+  if (!isVisible())
+    return;
+  auto *sb = m_textEdit->verticalScrollBar();
+  sb->setValue(sb->value() + steps * sb->singleStep());
+}
+
+void LogTabWidget::showEvent(QShowEvent *ev) {
+  QWidget::showEvent(ev);
+  if (m_serialHandler) {
+    // assume you can reach your serial handler somehow, e.g. via a setter
+    connect(m_serialHandler, &SerialHandler::rotatedCW, this,
+            &LogTabWidget::scrollLogUp);
+    connect(m_serialHandler, &SerialHandler::rotatedCCW, this,
+            &LogTabWidget::scrollLogDown);
+  }
+}
+
+void LogTabWidget::hideEvent(QHideEvent *ev) {
+  QWidget::hideEvent(ev);
+  if (m_serialHandler) {
+    disconnect(m_serialHandler, &SerialHandler::rotatedCW, this,
+               &LogTabWidget::scrollLogUp);
+    disconnect(m_serialHandler, &SerialHandler::rotatedCCW, this,
+               &LogTabWidget::scrollLogDown);
+  }
 }

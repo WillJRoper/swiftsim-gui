@@ -84,7 +84,7 @@ void RotationFrameLoader::startLoading(const QString &imageDirectory,
     if (stepAttr >= 0) {
       H5Aread(stepAttr, H5T_NATIVE_INT, &m_currentStep);
       H5Aclose(stepAttr);
-      qInfo() << "Loaded step attribute:" << m_currentStep;
+      emit stepChanged(m_currentStep);
     } else {
       qWarning() << "Failed to read 'step' attribute.";
     }
@@ -93,7 +93,7 @@ void RotationFrameLoader::startLoading(const QString &imageDirectory,
     if (ageAttr >= 0) {
       H5Aread(ageAttr, H5T_NATIVE_DOUBLE, &m_currentAge);
       H5Aclose(ageAttr);
-      qInfo() << "Loaded age attribute:" << m_currentAge << "Gyrs";
+      emit ageChanged(static_cast<long long>(m_currentAge * 1e9));
     } else {
       qWarning() << "Failed to read 'age' attribute.";
     }

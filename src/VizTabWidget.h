@@ -2,6 +2,8 @@
 
 #include "RotationFrameLoader.h"
 #include "ScaledPixmapLabel.h"
+#include "SerialHandler.h"
+#include "StepCounter.h"
 #include "colormaps.h"
 #include <QFileSystemWatcher>
 #include <QImage>
@@ -32,6 +34,11 @@ public:
 
   /// Set the title of the visualization tab
   void setTitle(const QString &title);
+
+  /// Set the serial handler to allow scrolling time via serial commands.
+  void setSerialHandler(SerialHandler *serialHandler) {
+    m_serialHandler = serialHandler;
+  }
 
 public slots:
   /// Watch a directory of files named ".../image_<N>.hdf5"
@@ -71,6 +78,8 @@ public slots:
 protected:
   void resizeEvent(QResizeEvent *ev) override;
   void keyPressEvent(QKeyEvent *evt) override;
+  void showEvent(QShowEvent *ev) override;
+  void hideEvent(QHideEvent *ev) override;
 
 signals:
   /// Internal: start or restart the loader thread
@@ -149,7 +158,14 @@ private:
   QTimer m_debounceTimer;
   double m_deltaScaler = 4; // How many physical knob ticks make a logical tick
   double m_tickRemainder = 0; // Remaining fractional logical ticks
+  SerialHandler *m_serialHandler = nullptr; // Serial handler for time control
 
   // idle reset timer
   QTimer m_idleTimer;
+
+  // Step counters in bottom corners
+  StepCounterWidget *m_counterBL;
+  StepCounterWidget *m_counterBR;
+  int m_counterMargin = 30;
+  double m_counterSizePercent = 15.0;
 };

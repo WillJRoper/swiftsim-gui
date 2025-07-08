@@ -45,8 +45,8 @@ MainWindow::MainWindow(SimulationController *simCtrl,
   createProgressBar();
   createPlots();
   createDataWatcher();
-  createSerialHandler("/dev/cu.usbmodem2101");
   createVisualisations();
+  createSerialHandler("/dev/cu.usbmodem2101");
   createCounters();
 
   // Connection all the signals and slots
@@ -190,7 +190,7 @@ void MainWindow::createActions() {
 
   // ─── Update the top box top widget on a Timer ─────────────────────
   m_topRotateTimer = new QTimer(this);
-  m_topRotateTimer->setInterval(2000);
+  m_topRotateTimer->setInterval(5000);
   connect(m_topRotateTimer, &QTimer::timeout, this, &MainWindow::rotateTopPage);
   m_topRotateTimer->start();
 
@@ -198,11 +198,11 @@ void MainWindow::createActions() {
   connect(m_serialHandler, &SerialHandler::buttonPressed, this,
           &MainWindow::buttonUpdateUI);
 
-  // ─── Map encoder rotation to top page rotation ──────────────
-  connect(m_serialHandler, &SerialHandler::rotatedCW, m_vizTab,
-          &VizTabWidget::fastForwardTime);
-  connect(m_serialHandler, &SerialHandler::rotatedCCW, m_vizTab,
-          &VizTabWidget::rewindTime);
+  // // ─── Map encoder rotation to time control ────────────────────
+  // connect(m_serialHandler, &SerialHandler::rotatedCW, m_vizTab,
+  //         &VizTabWidget::fastForwardTime);
+  // connect(m_serialHandler, &SerialHandler::rotatedCCW, m_vizTab,
+  //         &VizTabWidget::rewindTime);
 
   // Reset idle timer on any button press:
   connect(m_serialHandler, &SerialHandler::buttonPressed, m_vizTab,
@@ -440,7 +440,12 @@ void MainWindow::createCounters() {
 
 void MainWindow::createSerialHandler(const QString &portPath) {
   // Instantiate and let MainWindow own it
-  m_serialHandler = new SerialHandler(portPath, /*baud=*/115200, this);
+  m_serialHandler =
+      new SerialHandler(portPath, /*baud=*/115200, /*parent=*/nullptr);
+
+  // Attach the serial handler to the other classes that need it
+  m_logTab->setSerialHandler(m_serialHandler);
+  m_vizTab->setSerialHandler(m_serialHandler);
 
   // Button presses → debug
   connect(m_serialHandler, &SerialHandler::buttonPressed, this,
@@ -497,7 +502,6 @@ void MainWindow::updateBlackHolesFormedCounter(long long count) {
 }
 
 void MainWindow::updateParticleUpdateCounter(long long count) {
-  qInfo() << "Updating particle update counter with count:" << count;
   m_ParticleUpdateCounter->setStep(count);
 }
 

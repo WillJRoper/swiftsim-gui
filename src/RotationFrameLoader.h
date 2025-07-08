@@ -38,6 +38,8 @@ public slots:
 signals:
   void frameReady(const QImage &img, int fileNumber, int frameIndex,
                   int totalFrames);
+  void stepChanged(long long step);
+  void ageChanged(long long age); // in Gyrs
 
 private:
   void computePercentiles();

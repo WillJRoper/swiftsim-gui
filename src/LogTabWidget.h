@@ -1,5 +1,6 @@
 #pragma once
 
+#include "SerialHandler.h"
 #include <QFileSystemWatcher>
 #include <QFont>
 #include <QString>
@@ -21,6 +22,15 @@ public:
   // Call this when the user picks a new font size.
   void setFontSize(int pointSize);
 
+  // Set the serial handler to allow scrolling via serial commands.
+  void setSerialHandler(SerialHandler *serialHandler) {
+    m_serialHandler = serialHandler;
+  }
+
+public slots:
+  void scrollLogUp(int steps);
+  void scrollLogDown(int steps);
+
 private slots:
   // Invoked when the watched file is modified or replaced.
   void onFileChanged(const QString &path);
@@ -30,6 +40,8 @@ private slots:
 
 protected:
   void paintEvent(QPaintEvent *event) override;
+  void showEvent(QShowEvent *ev) override;
+  void hideEvent(QHideEvent *ev) override;
 
 private:
   QPlainTextEdit *m_textEdit;    // Read-only display area.
@@ -40,4 +52,6 @@ private:
   QTimer *m_reloadTimer;     // Single-shot debounce timer
   qint64 m_lastPosition = 0; // Last read position in file
   QPixmap m_background;
+
+  SerialHandler *m_serialHandler = nullptr; // Serial handler for scrolling
 };

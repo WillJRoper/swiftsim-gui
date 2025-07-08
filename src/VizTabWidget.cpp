@@ -5,11 +5,13 @@
 #include <QFile>
 #include <QFileInfoList>
 #include <QGraphicsOpacityEffect>
+#include <QHideEvent>
 #include <QInputDialog>
 #include <QKeyEvent>
 #include <QMetaObject>
 #include <QRegularExpression>
 #include <QShortcut>
+#include <QShowEvent>
 #include <QVBoxLayout>
 #include <algorithm>
 
@@ -26,13 +28,13 @@ VizTabWidget::VizTabWidget(QWidget *parent)
   m_titleLabel->setObjectName("vizTitleLabel");
   m_titleLabel->setAlignment(Qt::AlignCenter);
   m_titleLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+  m_titleLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+  m_titleLabel->setStyleSheet(
+      "background: rgba(0,0,0,0);"); // or semi‐opaque if you like
 
   // Layout
   auto *lay = new QVBoxLayout(this);
   lay->setContentsMargins(0, 0, 0, 0);
-
-  // Put the title on top with no stretch
-  lay->addWidget(m_titleLabel, /*stretch=*/0);
 
   // Then the image expands to fill
   lay->addWidget(m_imageLabel, /*stretch=*/1);
@@ -75,6 +77,23 @@ VizTabWidget::VizTabWidget(QWidget *parent)
   // auto *esaOpacity = new QGraphicsOpacityEffect(this);
   // esaOpacity->setOpacity(0.75);
   // m_esaLabel->setGraphicsEffect(esaOpacity);
+
+  // Step counters
+  m_counterBL =
+      new StepCounterWidget(tr("SIMULATION STEPS"), this, 4, 16, true);
+  m_counterBL->setAttribute(Qt::WA_TransparentForMouseEvents);
+  m_counterBL->setStyleSheet("background:transparent;");
+  m_counterBL->show();
+  connect(m_loader, &RotationFrameLoader::stepChanged, m_counterBL,
+          &StepCounterWidget::setStep, Qt::QueuedConnection);
+
+  m_counterBR =
+      new StepCounterWidget(tr("AGE OF THE UNIVERSE"), this, 4, 16, true);
+  m_counterBR->setAttribute(Qt::WA_TransparentForMouseEvents);
+  m_counterBR->setStyleSheet("background:transparent;");
+  m_counterBR->show();
+  connect(m_loader, &RotationFrameLoader::ageChanged, m_counterBR,
+          &StepCounterWidget::setStep, Qt::QueuedConnection);
 
   // directory watcher
   connect(&m_dirWatcher, &QFileSystemWatcher::directoryChanged, this,
@@ -247,6 +266,16 @@ void VizTabWidget::handleFrameReady(const QImage &img, int fileNumber,
 void VizTabWidget::resizeEvent(QResizeEvent *ev) {
   QWidget::resizeEvent(ev);
 
+  // position the title:
+  const int topMargin = 20;
+  int w = width();
+  int h = m_titleLabel->sizeHint().height();     // height based on font
+  m_titleLabel->setGeometry(0, topMargin, w, h); // full‐width
+  // (you can inset left/right margins if you like:
+  //  m_titleLabel->setGeometry(leftMargin, topMargin,
+  //                            w - leftMargin - rightMargin, h);
+  m_titleLabel->raise();
+
   // These are turned off for now, in favour of logos on walls around the
   // exhibit
 
@@ -307,6 +336,21 @@ void VizTabWidget::resizeEvent(QResizeEvent *ev) {
   //   m_esaLabel->move(x, y);
   //   m_esaLabel->raise();
   // }
+
+  // Position bottom-left counter
+  h = int(height() * m_counterSizePercent / 100);
+  m_counterBL->setFixedHeight(h);
+  m_counterBL->adjustSize();
+  int xBL = m_counterMargin;
+  int yBL = height() - m_counterBL->height() - m_counterMargin;
+  m_counterBL->move(xBL, yBL);
+
+  // Position bottom-right counter
+  m_counterBR->setFixedHeight(h);
+  m_counterBR->adjustSize();
+  int xBR = width() - m_counterBR->width() - m_counterMargin;
+  int yBR = yBL;
+  m_counterBR->move(xBR, yBR);
 }
 
 void VizTabWidget::onImageDirectoryChanged(const QString &) {
@@ -319,12 +363,18 @@ void VizTabWidget::setTitle(const QString &text) {
 
 // Instead of immediately changing file number, add to pending and restart timer
 void VizTabWidget::rewindTime(int delta) {
-  m_pendingDelta -= delta / m_deltaScaler; // scale down for smoother control
-  m_debounceTimer.start();                 // restart countdown
+  if (!isVisible()) // <-- bail out if the tab isn’t showing
+    return;
+
+  m_pendingDelta -= delta / m_deltaScaler;
+  m_debounceTimer.start();
 }
 
 void VizTabWidget::fastForwardTime(int delta) {
-  m_pendingDelta += delta / m_deltaScaler; // scale down for smoother control
+  if (!isVisible()) // <-- bail out if the tab isn’t showing
+    return;
+
+  m_pendingDelta += delta / m_deltaScaler;
   m_debounceTimer.start();
 }
 
@@ -386,4 +436,24 @@ void VizTabWidget::promptHighPercentile() {
     setPercentileRange(m_percentileLow, static_cast<float>(newHigh));
   }
   qInfo() << "New high percentile set to:" << newHigh;
+}
+
+void VizTabWidget::showEvent(QShowEvent *ev) {
+  QWidget::showEvent(ev);
+  if (m_serialHandler) {
+    connect(m_serialHandler, &SerialHandler::rotatedCW, this,
+            &VizTabWidget::fastForwardTime);
+    connect(m_serialHandler, &SerialHandler::rotatedCCW, this,
+            &VizTabWidget::rewindTime);
+  }
+}
+
+void VizTabWidget::hideEvent(QHideEvent *ev) {
+  QWidget::hideEvent(ev);
+  if (m_serialHandler) {
+    disconnect(m_serialHandler, &SerialHandler::rotatedCW, this,
+               &VizTabWidget::fastForwardTime);
+    disconnect(m_serialHandler, &SerialHandler::rotatedCCW, this,
+               &VizTabWidget::rewindTime);
+  }
 }

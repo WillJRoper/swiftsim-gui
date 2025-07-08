@@ -2,9 +2,6 @@ import sys
 
 import matplotlib.pyplot as plt
 import pandas as pd
-from astropy.cosmology import Planck18 as cosmo
-from astropy.cosmology import z_at_value
-from astropy.units import Gyr
 
 plt.rcParams["font.family"] = "Eurostile Extended"
 
@@ -42,42 +39,6 @@ def main():
     ax.grid(True, color=HAL_RED, linestyle="--", linewidth=0.5)
     ax.tick_params(colors=HAL_RED, which="both", axis="both", labelsize=12)
     for spine in ax.spines.values():
-        spine.set_color(HAL_RED)
-        spine.set_linewidth(0.5)
-        spine.set_linestyle("--")
-
-    # 5) Create top axis for redshift
-    ax2 = ax.twiny()
-
-    # Sync x-limits
-    ax2.set_xlim(ax.get_xlim())
-
-    # Bottom tick positions
-    bottom_ticks = ax.get_xticks()
-
-    # Clean up the bottom ticks
-    bottom_ticks = [t for t in bottom_ticks if t > 0 and t <= 14]
-
-    # Convert bottom ticks to redshift
-    z_ticks = [
-        float(z_at_value(cosmo.age, t * Gyr, zmax=140).value) for t in bottom_ticks
-    ]
-
-    bottom_ticks.insert(0, cosmo.age(127).value)
-    z_ticks.insert(0, 127.0)
-
-    print(z_ticks)
-
-    # Apply to top axis
-    ax2.set_xticks(bottom_ticks)
-    ax2.set_xticklabels([f"{z:.1f}" for z in z_ticks], color=HAL_RED, fontsize=12)
-
-    # Label & style top axis
-    ax2.set_xlabel("Redshift", color=HAL_RED, fontsize=16)
-    ax2.xaxis.set_label_position("top")
-    ax2.xaxis.tick_top()
-    ax2.tick_params(colors=HAL_RED, which="both")
-    for spine in ax2.spines.values():
         spine.set_color(HAL_RED)
         spine.set_linewidth(0.5)
         spine.set_linestyle("--")

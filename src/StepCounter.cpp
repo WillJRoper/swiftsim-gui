@@ -1,4 +1,5 @@
 #include "StepCounter.h"
+#include <QFont>
 #include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QLCDNumber>
@@ -7,7 +8,7 @@
 #include <QVBoxLayout>
 
 StepCounterWidget::StepCounterWidget(const QString &title, QWidget *parent,
-                                     int digitCount)
+                                     int digitCount, int fontSize, bool white)
     : QWidget(parent), m_titleLabel(new QLabel(title, this)),
       m_lcd(new QLCDNumber(this)), m_digitCount(digitCount) {
   // Title: centered, minimal vertical space
@@ -24,6 +25,13 @@ StepCounterWidget::StepCounterWidget(const QString &title, QWidget *parent,
   m_lcd->setSizePolicy(QSizePolicy::Expanding, // horizontal: expand
                        QSizePolicy::Expanding  // vertical: expand
   );
+
+  // Override style-sheet font-size if user passed one:
+  if (fontSize > 0) {
+    QString rule = QString("font-size: %1pt;").arg(fontSize);
+    m_titleLabel->setStyleSheet(rule);
+    m_lcd->setStyleSheet(rule);
+  }
 
   // Glow effect
   auto *glow = new QGraphicsDropShadowEffect(m_lcd);
@@ -47,6 +55,15 @@ StepCounterWidget::StepCounterWidget(const QString &title, QWidget *parent,
 
   // Initialize display
   setStep(0);
+
+  // Do we need to use a white font color?
+  if (white) {
+    setObjectName("stepWhite");
+    m_lcd->setObjectName("lcdWhite");
+  } else {
+    setObjectName("stepCounter");
+    m_lcd->setObjectName("lcdCounter");
+  }
 }
 
 void StepCounterWidget::setStep(long long step) {
