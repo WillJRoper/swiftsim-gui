@@ -137,9 +137,9 @@ void LogTabWidget::showEvent(QShowEvent *ev) {
   QWidget::showEvent(ev);
   if (m_serialHandler) {
     // assume you can reach your serial handler somehow, e.g. via a setter
-    connect(m_serialHandler, &SerialHandler::rotatedCW, this,
-            &LogTabWidget::scrollLogUp);
     connect(m_serialHandler, &SerialHandler::rotatedCCW, this,
+            &LogTabWidget::scrollLogUp);
+    connect(m_serialHandler, &SerialHandler::rotatedCW, this,
             &LogTabWidget::scrollLogDown);
   }
 }
@@ -147,9 +147,9 @@ void LogTabWidget::showEvent(QShowEvent *ev) {
 void LogTabWidget::hideEvent(QHideEvent *ev) {
   QWidget::hideEvent(ev);
   if (m_serialHandler) {
-    disconnect(m_serialHandler, &SerialHandler::rotatedCW, this,
-               &LogTabWidget::scrollLogUp);
     disconnect(m_serialHandler, &SerialHandler::rotatedCCW, this,
+               &LogTabWidget::scrollLogUp);
+    disconnect(m_serialHandler, &SerialHandler::rotatedCW, this,
                &LogTabWidget::scrollLogDown);
   }
 }
