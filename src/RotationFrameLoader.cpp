@@ -80,20 +80,21 @@ void RotationFrameLoader::startLoading(const QString &imageDirectory,
   // Read the step and age attributes from the root group
   hid_t rootGroup = H5Gopen2(m_fileId, "/", H5P_DEFAULT);
   if (rootGroup >= 0) {
-    hid_t stepAttr = H5Aopen_name(rootGroup, "step");
-    if (stepAttr >= 0) {
-      H5Aread(stepAttr, H5T_NATIVE_INT, &m_currentStep);
-      H5Aclose(stepAttr);
-      emit stepChanged(m_currentStep);
-    } else {
-      qWarning() << "Failed to read 'step' attribute.";
-    }
+    // Unused currently!
+    // hid_t stepAttr = H5Aopen_name(rootGroup, "step");
+    // if (stepAttr >= 0) {
+    //   H5Aread(stepAttr, H5T_NATIVE_INT, &m_currentStep);
+    //   H5Aclose(stepAttr);
+    // } else {
+    //   qWarning() << "Failed to read 'step' attribute.";
+    // }
 
     hid_t ageAttr = H5Aopen_name(rootGroup, "age");
     if (ageAttr >= 0) {
       H5Aread(ageAttr, H5T_NATIVE_DOUBLE, &m_currentAge);
       H5Aclose(ageAttr);
       emit ageChanged(static_cast<long long>(m_currentAge * 1e9));
+      emit percentChanged(static_cast<int>(m_currentAge / 13.81 * 100));
     } else {
       qWarning() << "Failed to read 'age' attribute.";
     }

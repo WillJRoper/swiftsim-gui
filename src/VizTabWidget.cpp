@@ -79,20 +79,18 @@ VizTabWidget::VizTabWidget(QWidget *parent)
   // m_esaLabel->setGraphicsEffect(esaOpacity);
 
   // Step counters
-  m_counterBL =
-      new StepCounterWidget(tr("SIMULATION STEPS"), this, 4, 16, true);
-  m_counterBL->setAttribute(Qt::WA_TransparentForMouseEvents);
-  m_counterBL->setStyleSheet("background:transparent;");
-  m_counterBL->show();
-  connect(m_loader, &RotationFrameLoader::stepChanged, m_counterBL,
-          &StepCounterWidget::setStep, Qt::QueuedConnection);
-
-  m_counterBR =
-      new StepCounterWidget(tr("AGE OF THE UNIVERSE"), this, 4, 16, true);
+  m_counterBR = new StepCounterWidget(tr("PERCENTAGE RUN"), this, 2, 16, true);
   m_counterBR->setAttribute(Qt::WA_TransparentForMouseEvents);
   m_counterBR->setStyleSheet("background:transparent;");
   m_counterBR->show();
-  connect(m_loader, &RotationFrameLoader::ageChanged, m_counterBR,
+  connect(m_loader, &RotationFrameLoader::percentChanged, m_counterBR,
+          &StepCounterWidget::setStep, Qt::QueuedConnection);
+
+  m_counterBL = new StepCounterWidget(tr("AGE (YRS)"), this, 4, 16, true);
+  m_counterBL->setAttribute(Qt::WA_TransparentForMouseEvents);
+  m_counterBL->setStyleSheet("background:transparent;");
+  m_counterBL->show();
+  connect(m_loader, &RotationFrameLoader::ageChanged, m_counterBL,
           &StepCounterWidget::setStep, Qt::QueuedConnection);
 
   // directory watcher
@@ -339,7 +337,9 @@ void VizTabWidget::resizeEvent(QResizeEvent *ev) {
 
   // Position bottom-left counter
   h = int(height() * m_counterSizePercent / 100);
+  w = int(width() * 20 / 100); // 20% of width
   m_counterBL->setFixedHeight(h);
+  m_counterBL->setFixedWidth(w);
   m_counterBL->adjustSize();
   int xBL = m_counterMargin;
   int yBL = height() - m_counterBL->height() - m_counterMargin;
@@ -347,6 +347,7 @@ void VizTabWidget::resizeEvent(QResizeEvent *ev) {
 
   // Position bottom-right counter
   m_counterBR->setFixedHeight(h);
+  m_counterBR->setFixedWidth(w);
   m_counterBR->adjustSize();
   int xBR = width() - m_counterBR->width() - m_counterMargin;
   int yBR = yBL;
