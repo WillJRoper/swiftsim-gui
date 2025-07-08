@@ -113,7 +113,7 @@ VizTabWidget::VizTabWidget(QWidget *parent)
           &VizTabWidget::applyPendingDelta);
 
   // Idle timer setup (reset to latest after inactivity)
-  constexpr int IDLE_MS = 2 * 60 * 1000;
+  constexpr int IDLE_MS = 60 * 1000;
   m_idleTimer.setSingleShot(true);
   m_idleTimer.setInterval(IDLE_MS);
   connect(&m_idleTimer, &QTimer::timeout, this, &VizTabWidget::resetToLatest);
@@ -159,7 +159,6 @@ void VizTabWidget::scanImageDirectory() {
   if (maxIdx > m_latestFileNumber) {
     m_latestFileNumber = maxIdx;
   }
-  setCurrentFileNumber(m_latestFileNumber);
 }
 
 void VizTabWidget::setCurrentFileNumber(int idx) {
