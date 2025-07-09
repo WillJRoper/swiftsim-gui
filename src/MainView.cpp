@@ -190,7 +190,7 @@ void MainWindow::createActions() {
 
   // ─── Update the top box top widget on a Timer ─────────────────────
   m_topRotateTimer = new QTimer(this);
-  m_topRotateTimer->setInterval(5000);
+  m_topRotateTimer->setInterval(15000);
   connect(m_topRotateTimer, &QTimer::timeout, this, &MainWindow::rotateTopPage);
   m_topRotateTimer->start();
 

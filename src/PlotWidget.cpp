@@ -40,7 +40,7 @@ void PlotWidget::refresh(int step) {
   }
 
   // (Re)start debounce timer
-  m_debounceTimer->start(5000); // 5 s debounce interval
+  m_debounceTimer->start(30000); // 30 s debounce interval
 }
 
 void PlotWidget::onDebounceTimeout() {
