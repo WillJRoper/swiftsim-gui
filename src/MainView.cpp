@@ -198,12 +198,6 @@ void MainWindow::createActions() {
   connect(m_serialHandler, &SerialHandler::buttonPressed, this,
           &MainWindow::buttonUpdateUI);
 
-  // // ─── Map encoder rotation to time control ────────────────────
-  // connect(m_serialHandler, &SerialHandler::rotatedCW, m_vizTab,
-  //         &VizTabWidget::fastForwardTime);
-  // connect(m_serialHandler, &SerialHandler::rotatedCCW, m_vizTab,
-  //         &VizTabWidget::rewindTime);
-
   // Reset idle timer on any button press:
   connect(m_serialHandler, &SerialHandler::buttonPressed, m_vizTab,
           &VizTabWidget::resetIdleTimer);
@@ -446,28 +440,6 @@ void MainWindow::createSerialHandler(const QString &portPath) {
   // Attach the serial handler to the other classes that need it
   m_logTab->setSerialHandler(m_serialHandler);
   m_vizTab->setSerialHandler(m_serialHandler);
-
-  // Button presses → debug
-  connect(m_serialHandler, &SerialHandler::buttonPressed, this,
-          [](int id) { qDebug() << "[Serial] Button" << id << "pressed"; });
-
-  // Clockwise rotation → debug
-  connect(m_serialHandler, &SerialHandler::rotatedCW, this, [](int steps) {
-    qDebug() << "[Serial] Rotated CW by" << steps << "steps";
-  });
-
-  // Anti-clockwise rotation → debug
-  connect(m_serialHandler, &SerialHandler::rotatedCCW, this, [](int steps) {
-    qDebug() << "[Serial] Rotated CCW by" << steps << "steps";
-  });
-
-  // Absolute position updates → debug
-  connect(m_serialHandler, &SerialHandler::positionChanged, this,
-          [](int pos) { qDebug() << "[Serial] Position changed to" << pos; });
-
-  // Error reporting → debug
-  connect(m_serialHandler, &SerialHandler::errorOccurred, this,
-          [](const QString &msg) { qDebug() << "[Serial] Error:" << msg; });
 }
 
 void MainWindow::rotateTopPage() {

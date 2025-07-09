@@ -238,13 +238,6 @@ void VizTabWidget::keyPressEvent(QKeyEvent *evt) {
   case Qt::Key_Down:
     rewindTime(1);
     return;
-  // fall through to your existing digit‐switching logic:
-  case Qt::Key_1:
-  case Qt::Key_2:
-  case Qt::Key_3:
-  case Qt::Key_4:
-    // your existing dataset‐keys…
-    break;
   default:
     QWidget::keyPressEvent(evt);
     return;
@@ -392,8 +385,7 @@ void VizTabWidget::applyPendingDelta() {
   m_tickRemainder = m_pendingDelta - deltaInt;
 
   // compute new clamped file number
-  int newFileNumber =
-      std::clamp(m_currentFileNumber + deltaInt, 0, m_latestFileNumber);
+  int newFileNumber = m_currentFileNumber + deltaInt;
 
   // apply and reset
   setCurrentFileNumberKnob(newFileNumber);

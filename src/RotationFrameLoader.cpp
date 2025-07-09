@@ -129,7 +129,6 @@ void RotationFrameLoader::jumpToFile(int fileNumber, bool keepPercentiles) {
   startLoading(m_imageDirectory, fileNumber, m_currentDatasetKey,
                m_percentileLow, m_percentileHigh, m_colormapIdx, m_fps,
                keepPercentiles);
-  // no immediate frame load; nextRotationFrame() will pick it up
 }
 
 void RotationFrameLoader::computePercentiles() {

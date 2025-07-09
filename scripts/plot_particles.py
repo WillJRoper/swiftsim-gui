@@ -20,7 +20,7 @@ def main():
 
     # 3) Plot setup
     plt.style.use("dark_background")
-    plt.figure(figsize=(12, 12 / 2.34375), dpi=300)
+    plt.figure(figsize=(12, 12 / 2.34375), dpi=500)
     plt.xlabel("Age of the Universe (Gyr)", color=HAL_RED, fontsize=16)
     plt.ylabel("Particle Count", color=HAL_RED, fontsize=16)
     plt.grid(True, color=HAL_RED, linestyle="--", linewidth=0.5)
@@ -84,7 +84,7 @@ def main():
     )
 
     plt.tight_layout()
-    plt.savefig(outpng, facecolor="black", dpi=300)
+    plt.savefig(outpng, facecolor="black", dpi=500)
     plt.close()
 
 
