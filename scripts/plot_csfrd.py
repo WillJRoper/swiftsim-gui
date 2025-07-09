@@ -21,7 +21,7 @@ def main():
 
     # 2) Create figure & main axis
     plt.style.use("dark_background")
-    fig, ax = plt.subplots(figsize=(12, 12 / 2.34375), dpi=500)
+    fig, ax = plt.subplots(figsize=(12, 12 / 2.34375), dpi=1000)
 
     # 3) Plot the CSFRD
     ax.plot(
@@ -45,7 +45,7 @@ def main():
 
     # 6) Finalize and save
     plt.tight_layout()
-    fig.savefig(outpng, facecolor="black", dpi=500)
+    fig.savefig(outpng, facecolor="black", dpi=1000)
     plt.close(fig)
 
 
