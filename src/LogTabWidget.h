@@ -30,6 +30,7 @@ public:
 public slots:
   void scrollLogUp(int steps);
   void scrollLogDown(int steps);
+  void resetIdleTimer();
 
 private slots:
   // Invoked when the watched file is modified or replaced.
@@ -37,6 +38,9 @@ private slots:
 
   // Reloads new data into the text edit.
   void updateLogView();
+
+  // Resets the view to the bottom of the log.
+  void resetToBottom();
 
 protected:
   void paintEvent(QPaintEvent *event) override;
@@ -52,6 +56,9 @@ private:
   QTimer *m_reloadTimer;     // Single-shot debounce timer
   qint64 m_lastPosition = 0; // Last read position in file
   QPixmap m_background;
+
+  // idle reset timer
+  QTimer m_idleTimer;
 
   SerialHandler *m_serialHandler = nullptr; // Serial handler for scrolling
 };

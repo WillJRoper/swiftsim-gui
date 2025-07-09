@@ -21,7 +21,7 @@ def main():
 
     # 2) Create figure & main axis
     plt.style.use("dark_background")
-    fig, ax = plt.subplots(figsize=(27, 14), dpi=100)
+    fig, ax = plt.subplots(figsize=(27, 12), dpi=100)
 
     # 3) Plot the CSFRD
     ax.plot(

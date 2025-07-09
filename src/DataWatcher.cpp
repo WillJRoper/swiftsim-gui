@@ -69,16 +69,19 @@ void DataWatcher::updateData() {
   }
 
   // 5) Always emit stepChanged and percentRunChanged
-  bool okStep = false, okPct = false, okStarMass = false;
+  bool okStep = false, okPct = false, okStarMass = false, okRedshift = false;
   int step = parts[0].toInt(&okStep);
   double pct = parts[12].toDouble(&okPct);
   double starMass = parts[14].toDouble(&okStarMass) * 1e10; // Convert to Msun
+  double redshift = parts[2].toDouble(&okRedshift);
   if (okStep)
     emit stepChanged(step);
   if (okPct)
     emit percentRunChanged(pct);
   if (okStarMass)
     emit starMassChanged(starMass);
+  if (okRedshift)
+    emit redshiftChanged(redshift);
 
   // 6) Decide if we “emit heavy” (≥ half g-parts updated)
   bool emitHeavy = true;

@@ -38,6 +38,12 @@ LogTabWidget::LogTabWidget(const QString &filePath, QWidget *parent)
   connect(m_watcher, &QFileSystemWatcher::fileChanged, this,
           &LogTabWidget::onFileChanged);
 
+  // Idle timer setup (reset to bootom of log after inactivity)
+  constexpr int IDLE_MS = 60 * 1000;
+  m_idleTimer.setSingleShot(true);
+  m_idleTimer.setInterval(IDLE_MS);
+  connect(&m_idleTimer, &QTimer::timeout, this, &LogTabWidget::resetToBottom);
+
   // Initial load
   updateLogView();
 }
@@ -152,4 +158,15 @@ void LogTabWidget::hideEvent(QHideEvent *ev) {
     disconnect(m_serialHandler, &SerialHandler::rotatedCW, this,
                &LogTabWidget::scrollLogDown);
   }
+}
+
+void LogTabWidget::resetIdleTimer() { m_idleTimer.start(); }
+
+void LogTabWidget::resetToBottom() {
+  // Scroll to the bottom of the log
+  QScrollBar *sb = m_textEdit->verticalScrollBar();
+  sb->setValue(sb->maximum());
+
+  // Restart idle timer for next reset
+  resetIdleTimer();
 }

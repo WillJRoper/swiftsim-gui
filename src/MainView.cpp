@@ -180,6 +180,10 @@ void MainWindow::createActions() {
           &MainWindow::updateParticleUpdateCounter, Qt::QueuedConnection);
   connect(m_dataWatcher, &DataWatcher::percentRunChanged, this,
           &MainWindow::updateProgressBar, Qt::QueuedConnection);
+  connect(m_dataWatcher, &DataWatcher::redshiftChanged, this,
+          &MainWindow::updateRedshiftCounter, Qt::QueuedConnection);
+  connect(m_dataWatcher, &DataWatcher::percentRunChanged, this,
+          &MainWindow::updatePercentRunCounter, Qt::QueuedConnection);
 
   // ─── DataWatcher → PlotWidgets ──────────────────────────
   connect(m_dataWatcher, &DataWatcher::wallClockTimeForStepChanged,
@@ -207,6 +211,10 @@ void MainWindow::createActions() {
           &VizTabWidget::resetIdleTimer);
   connect(m_serialHandler, &SerialHandler::rotatedCCW, m_vizTab,
           &VizTabWidget::resetIdleTimer);
+  connect(m_serialHandler, &SerialHandler::rotatedCW, m_logTab,
+          &LogTabWidget::resetIdleTimer);
+  connect(m_serialHandler, &SerialHandler::rotatedCCW, m_logTab,
+          &LogTabWidget::resetIdleTimer);
 
   // ─── Edit low‐percentile (“[”) ────────────────────────────────
   QAction *editLowPct = new QAction(tr("Edit Low Percentile"), this);
@@ -430,6 +438,15 @@ void MainWindow::createCounters() {
   m_ParticleUpdateCounter =
       new StepCounterWidget(tr("PARTICLES \nUPDATED"), this, 6);
   m_topStack->addWidget(m_ParticleUpdateCounter);
+
+  // Create the redshift counter
+  m_redshiftCounter = new StepCounterWidget(tr("REDSHIFT"), this, 4);
+  m_topStack->addWidget(m_redshiftCounter);
+
+  // Create the live percent counter
+  m_livePercentCounter =
+      new StepCounterWidget(tr("LIVE PERCENTAGE \n RUN"), this, 2);
+  m_topStack->addWidget(m_livePercentCounter);
 }
 
 void MainWindow::createSerialHandler(const QString &portPath) {
@@ -475,6 +492,23 @@ void MainWindow::updateBlackHolesFormedCounter(long long count) {
 
 void MainWindow::updateParticleUpdateCounter(long long count) {
   m_ParticleUpdateCounter->setStep(count);
+}
+
+void MainWindow::updateRedshiftCounter(double redshift) {
+  // Convert redshift to an interger
+  int redshiftInt = static_cast<int>(redshift);
+  m_redshiftCounter->setStep(redshiftInt);
+}
+
+void MainWindow::updatePercentRunCounter(double percent) {
+  // Ensure percent is in [0, 100]
+  percent = qBound(0.0, percent, 100.0);
+
+  // Convert percent to an integer
+  int percentInt = static_cast<int>(percent);
+
+  // Update the counter
+  m_livePercentCounter->setStep(percentInt);
 }
 
 void MainWindow::changeLogFontSize() {
@@ -523,6 +557,8 @@ void MainWindow::buttonUpdateUI(int id) {
   case 4:
     // Next on top widget
     rotateTopPage();
+    // Also bring up the Home tab
+    m_bottomWidget->setCurrentIndex(0);
     break;
   default:
     qDebug() << "Unknown button ID:" << id;

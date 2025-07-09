@@ -71,6 +71,8 @@ private:
   StepCounterWidget *m_starsFormedCounter;
   StepCounterWidget *m_blackHolesFormedCounter;
   StepCounterWidget *m_ParticleUpdateCounter;
+  StepCounterWidget *m_redshiftCounter;
+  StepCounterWidget *m_livePercentCounter;
 
   // Functions for updating UI elements
   void updateProgressBar(double percent);
@@ -80,6 +82,8 @@ private:
   void updateStarsFormedCounter(double mass);
   void updateBlackHolesFormedCounter(long long count);
   void updateParticleUpdateCounter(long long count);
+  void updateRedshiftCounter(double redshift);
+  void updatePercentRunCounter(double percent);
   void buttonUpdateUI(int id);
 
   // Plots
