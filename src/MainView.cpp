@@ -160,13 +160,6 @@ void MainWindow::createActions() {
           [this] { m_topStack->setCurrentIndex(3); });
   addAction(showParticles);
 
-  QAction *showCSFRD = new QAction(tr("CSFRD Plot"), this);
-  showCSFRD->setShortcut(QKeySequence(Qt::Key_6));
-  showCSFRD->setShortcutContext(Qt::ApplicationShortcut);
-  connect(showCSFRD, &QAction::triggered, this,
-          [this] { m_topStack->setCurrentIndex(5); });
-  addAction(showCSFRD);
-
   // ─── DataWatcher → MainWindow ───────────────────────────
   connect(m_dataWatcher, &DataWatcher::stepChanged, this,
           &MainWindow::updateStepCounter, Qt::QueuedConnection);
@@ -354,15 +347,7 @@ void MainWindow::createPlots() {
       this);
   m_topStack->addWidget(m_particlePlot);
 
-  // Page 3: CSFRD
-  const QString csfrdScript = QDir(scriptsDir).filePath("plot_csfrd.py");
-  const QString csfrdPng = QDir(plotsDir).filePath("csfrd_plot.png");
-  m_csfrdPlot = new PlotWidget(
-      csfrdScript, m_simCtrl->simulationDirectory() + "/gui_data.txt", csfrdPng,
-      this);
-  m_topStack->addWidget(m_csfrdPlot);
-
-  // Page 4: Particle Update Counts
+  // Page 3: Particle Update Counts
   const QString updatesScript = QDir(scriptsDir).filePath("plot_updates.py");
   const QString updatesPng = QDir(plotsDir).filePath("update_plot.png");
   m_updatesPlot = new PlotWidget(

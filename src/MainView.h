@@ -89,7 +89,6 @@ private:
   // Plots
   PlotWidget *m_wallTimePlot;
   PlotWidget *m_particlePlot;
-  PlotWidget *m_csfrdPlot;
   PlotWidget *m_updatesPlot;
 
   // Visualization tab (4 rotating‐cube datasets)
