@@ -453,6 +453,11 @@ void MainWindow::rotateTopPage() {
 
   int next = (m_topStack->currentIndex() + 1) % count;
   m_topStack->setCurrentIndex(next);
+
+  // Reset the rotate timer
+  if (m_topRotateTimer) {
+    m_topRotateTimer->start();
+  }
 }
 
 void MainWindow::updateStepCounter(long long step) {
@@ -467,7 +472,7 @@ void MainWindow::updateWallClockCounter(double t) {
 
 void MainWindow::updateStarsFormedCounter(double mass) {
   // Convert mass to integer count (assuming 1 solar mass per star)
-  int count = static_cast<int>(mass);
+  long long count = static_cast<long long>(mass * 1e10);
   m_starsFormedCounter->setStep(count);
 }
 

@@ -123,6 +123,16 @@ VizTabWidget::VizTabWidget(QWidget *parent)
 
   // Make sure this widget gets focus and key events
   setFocusPolicy(Qt::StrongFocus);
+
+  // Scan the image directory initially
+  scanImageDirectory();
+
+  // If we have a file number, start loading it
+  if (m_latestFileNumber >= 0) {
+    emit startLoader(m_imageDirectory, m_currentFileNumber, m_currentDatasetKey,
+                     m_percentileLow, m_percentileHigh, int(m_colormap), m_fps,
+                     false);
+  }
 }
 
 VizTabWidget::~VizTabWidget() {
@@ -191,10 +201,10 @@ void VizTabWidget::setDatasetKey(const QString &key) {
     return;
   m_currentDatasetKey = key;
   if (key == "dark_matter") {
-    m_colormap = Colormap::Plasma;
+    m_colormap = Colormap::Copper;
     setTitle(tr("Dark Matter"));
   } else if (key == "gas") {
-    m_colormap = Colormap::Magma;
+    m_colormap = Colormap::Cosmic;
     setTitle(tr("Gas"));
   } else if (key == "stars") {
     m_colormap = Colormap::SpeakNow;

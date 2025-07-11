@@ -196,6 +196,14 @@ void RotationFrameLoader::setColormap(int colormapIdx) {
     m_cmap = speaknow_colormap;
     m_cmap_size = speaknow_colormap_size;
     break;
+  case int(VizTabWidget::Colormap::Copper):
+    m_cmap = copper_colormap;
+    m_cmap_size = copper_colormap_size;
+    break;
+  case int(VizTabWidget::Colormap::Cosmic):
+    m_cmap = cosmic_colormap;
+    m_cmap_size = cosmic_colormap_size;
+    break;
   case int(VizTabWidget::Colormap::Greyscale):
   default:
     m_cmap = greyscale_colormap_colormap;

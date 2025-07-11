@@ -69,11 +69,15 @@ void DataWatcher::updateData() {
   }
 
   // 5) Always emit stepChanged and percentRunChanged
-  bool okStep = false, okPct = false, okStarMass = false, okRedshift = false;
+  bool okStep = false, okPct = false, okStarMass = false, okRedshift = false,
+       okBH = false;
   int step = parts[0].toInt(&okStep);
   double pct = parts[12].toDouble(&okPct);
-  double starMass = parts[14].toDouble(&okStarMass) * 1e10; // Convert to Msun
+  double starMass = parts[14].toDouble(&okStarMass); // In 10^10 Msun
   double redshift = parts[2].toDouble(&okRedshift);
+  qInfo() << "DataWatcher: step" << step << "percent run" << pct << "star mass"
+          << starMass << "redshift" << redshift;
+  int bh = parts[6].toInt(&okBH);
   if (okStep)
     emit stepChanged(step);
   if (okPct)
@@ -82,6 +86,8 @@ void DataWatcher::updateData() {
     emit starMassChanged(starMass);
   if (okRedshift)
     emit redshiftChanged(redshift);
+  if (okBH)
+    emit numberofBHChanged(bh);
 
   // 6) Decide if we “emit heavy” (≥ half g-parts updated)
   bool emitHeavy = true;
@@ -91,20 +97,15 @@ void DataWatcher::updateData() {
 
   // 7) Emit the heavier signals only if allowed
   if (emitHeavy) {
-    bool okSF = false, okRZ = false, okWT = false, okBH = false;
+    bool okSF = false, okRZ = false, okWT = false;
     double sf = parts[1].toDouble(&okSF);
     double rz = parts[2].toDouble(&okRZ);
     double wt = parts[11].toDouble(&okWT);
-    int bh = parts[6].toInt(&okBH);
     if (okSF)
       emit scaleFactorChanged(sf);
-    if (okRZ)
-      emit redshiftChanged(rz);
     if (okWT)
       emit wallClockTimeForStepChanged(wt);
     emit numberOfGPartsChanged(gUpd);
-    if (okBH)
-      emit numberofBHChanged(bh);
 
     // Sum up the wall-clock time
     double totalTime = 0.0;

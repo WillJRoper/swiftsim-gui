@@ -25,7 +25,9 @@ public:
     Jet,
     Inferno,
     Greyscale,
-    SpeakNow
+    SpeakNow,
+    Copper,
+    Cosmic,
   };
   Q_ENUM(Colormap)
 
@@ -151,7 +153,7 @@ private:
   float m_percentileHigh = 99.99f;
 
   // colormap
-  Colormap m_colormap = Colormap::Plasma;
+  Colormap m_colormap = Colormap::Copper;
 
   // pending time delta for rewinding/fast-forwarding and debouncing timer
   double m_pendingDelta = 0;
