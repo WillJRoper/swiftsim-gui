@@ -86,8 +86,7 @@ protected:
 signals:
   /// Internal: start or restart the loader thread
   void startLoader(const QString &imageDirectory, int fileNumber,
-                   const QString &datasetKey, float percentileLow,
-                   float percentileHigh, int colormapIdx, int fps,
+                   const QString &datasetKey, int colormapIdx, int fps,
                    bool keepPercentiles);
 
 private slots:

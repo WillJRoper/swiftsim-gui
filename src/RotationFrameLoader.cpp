@@ -29,15 +29,12 @@ RotationFrameLoader::~RotationFrameLoader() {
 void RotationFrameLoader::startLoading(const QString &imageDirectory,
                                        int fileNumber,
                                        const QString &datasetKey,
-                                       float percentileLow,
-                                       float percentileHigh, int colormapIdx,
-                                       int fps, bool keepPercentiles) {
+                                       int colormapIdx, int fps,
+                                       bool keepPercentiles) {
   // stash parameters
   m_imageDirectory = imageDirectory;
   m_currentFileNumber = fileNumber;
   m_currentDatasetKey = datasetKey;
-  m_percentileLow = percentileLow;
-  m_percentileHigh = percentileHigh;
   m_fps = fps;
   m_colormapIdx = colormapIdx;
   setColormap(colormapIdx);
@@ -94,7 +91,10 @@ void RotationFrameLoader::startLoading(const QString &imageDirectory,
       H5Aread(ageAttr, H5T_NATIVE_DOUBLE, &m_currentAge);
       H5Aclose(ageAttr);
       emit ageChanged(static_cast<long long>(m_currentAge * 1e9));
-      emit percentChanged(static_cast<int>(m_currentAge / 13.81 * 100));
+
+      // Emit percent clamped to [0, 100]
+      int intPercent = static_cast<int>(m_currentAge / 13.81 * 100);
+      emit percentChanged(std::clamp(intPercent, 0, 100));
     } else {
       qWarning() << "Failed to read 'age' attribute.";
     }
@@ -126,48 +126,176 @@ void RotationFrameLoader::startLoading(const QString &imageDirectory,
 
 void RotationFrameLoader::jumpToFile(int fileNumber, bool keepPercentiles) {
   // under the same rotation clock, just reopen
-  startLoading(m_imageDirectory, fileNumber, m_currentDatasetKey,
-               m_percentileLow, m_percentileHigh, m_colormapIdx, m_fps,
-               keepPercentiles);
+  startLoading(m_imageDirectory, fileNumber, m_currentDatasetKey, m_colormapIdx,
+               m_fps, keepPercentiles);
 }
 
+/**
+ * @brief Computes the lower and upper percentiles for the current latest file.
+ *
+ * The minimum and maximum values computed here will be used to normalize all
+ * preceding frames and get updates when there is a new file.
+ */
 void RotationFrameLoader::computePercentiles() {
   if (m_dsetId < 0 || m_nFrames <= 0)
     return;
 
+  // Open the latest file, we always scale the latest file
+  QString path =
+      m_imageDirectory + QString("image_%1.hdf5").arg(m_latestFileNumber);
+  hid_t fileId =
+      H5Fopen(path.toUtf8().constData(), H5F_ACC_RDONLY, H5P_DEFAULT);
+
+  // First do the dark matter dataset
+
+  // Open the dark matter dataset
+  hid_t dsetId = H5Dopen2(fileId, "dark_matter", H5P_DEFAULT);
+  hid_t fileSpace = H5Dget_space(m_dsetId);
+  hsize_t fullDims[3];
+  H5Sget_simple_extent_dims(fileSpace, fullDims, nullptr);
+  hsize_t count[3] = {1, fullDims[1], fullDims[2]};
+  hid_t memSpace = H5Screate_simple(3, count, nullptr);
+
+  // Allocate buffer for reading
+  std::vector<float> buf(size_t(m_xres) * m_yres, 0.0f);
+
   // read slice 0
   hsize_t offset[3] = {0, 0, 0};
-  H5Sselect_hyperslab(m_fileSpace, H5S_SELECT_SET, offset, nullptr,
+  H5Sselect_hyperslab(fileSpace, H5S_SELECT_SET, offset, nullptr,
                       (hsize_t[]){1, (hsize_t)m_xres, (hsize_t)m_yres},
                       nullptr);
-  H5Dread(m_dsetId, H5T_NATIVE_FLOAT, m_memSpace, m_fileSpace, H5P_DEFAULT,
-          m_buf.data());
-
+  H5Dread(dsetId, H5T_NATIVE_FLOAT, memSpace, fileSpace, H5P_DEFAULT,
+          buf.data());
   size_t N = m_buf.size();
   if (N == 0) {
-    m_lowerValue = 0;
-    m_upperValue = 1;
+    m_lowerValueDM = 0;
+    m_upperValueDM = 1;
     return;
   }
-
-  size_t lo = size_t((m_percentileLow / 100.f) * (N - 1) + .5f);
-  size_t hi = size_t((m_percentileHigh / 100.f) * (N - 1) + .5f);
+  size_t lo = size_t((m_percentileLowDM / 100.f) * (N - 1) + .5f);
+  size_t hi = size_t((m_percentileHighDM / 100.f) * (N - 1) + .5f);
   lo = std::clamp(lo, size_t(0), N - 1);
   hi = std::clamp(hi, size_t(0), N - 1);
+  std::nth_element(buf.begin(), buf.begin() + lo, buf.end());
+  m_lowerValueDM = buf[lo];
+  std::nth_element(buf.begin(), buf.begin() + hi, buf.end());
+  m_upperValueDM = buf[hi];
 
-  std::nth_element(m_buf.begin(), m_buf.begin() + lo, m_buf.end());
-  m_lowerValue = m_buf[lo];
-  std::nth_element(m_buf.begin(), m_buf.begin() + hi, m_buf.end());
-  m_upperValue = m_buf[hi];
-
-  if (m_lowerValue == m_upperValue) {
-    m_lowerValue = std::numeric_limits<float>::max();
-    m_upperValue = std::numeric_limits<float>::lowest();
-    for (float v : m_buf) {
-      m_lowerValue = std::min(m_lowerValue, v);
-      m_upperValue = std::max(m_upperValue, v);
+  // If these are the same, fall back to min/max
+  if (m_lowerValueDM == m_upperValueDM) {
+    m_lowerValueDM = std::numeric_limits<float>::max();
+    m_upperValueDM = std::numeric_limits<float>::lowest();
+    for (float v : buf) {
+      m_lowerValueDM = std::min(m_lowerValueDM, v);
+      m_upperValueDM = std::max(m_upperValueDM, v);
     }
   }
+
+  // Now do the gas dataset
+
+  dsetId = H5Dopen2(fileId, "gas", H5P_DEFAULT);
+  fileSpace = H5Dget_space(dsetId);
+  H5Sselect_hyperslab(fileSpace, H5S_SELECT_SET, offset, nullptr,
+                      (hsize_t[]){1, (hsize_t)m_xres, (hsize_t)m_yres},
+                      nullptr);
+  H5Dread(dsetId, H5T_NATIVE_FLOAT, memSpace, fileSpace, H5P_DEFAULT,
+          buf.data());
+  N = m_buf.size();
+  if (N == 0) {
+    m_lowerValueGas = 0;
+    m_upperValueGas = 1;
+    return;
+  }
+  lo = size_t((m_percentileLowGas / 100.f) * (N - 1) + .5f);
+  hi = size_t((m_percentileHighGas / 100.f) * (N - 1) + .5f);
+  lo = std::clamp(lo, size_t(0), N - 1);
+  hi = std::clamp(hi, size_t(0), N - 1);
+  std::nth_element(buf.begin(), buf.begin() + lo, buf.end());
+  m_lowerValueGas = buf[lo];
+  std::nth_element(buf.begin(), buf.begin() + hi, buf.end());
+  m_upperValueGas = buf[hi];
+
+  // If these are the same, fall back to min/max
+  if (m_lowerValueGas == m_upperValueGas) {
+    m_lowerValueGas = std::numeric_limits<float>::max();
+    m_upperValueGas = std::numeric_limits<float>::lowest();
+    for (float v : buf) {
+      m_lowerValueGas = std::min(m_lowerValueGas, v);
+      m_upperValueGas = std::max(m_upperValueGas, v);
+    }
+  }
+
+  // Now do the stars dataset
+  dsetId = H5Dopen2(fileId, "stars", H5P_DEFAULT);
+  fileSpace = H5Dget_space(dsetId);
+  H5Sselect_hyperslab(fileSpace, H5S_SELECT_SET, offset, nullptr,
+                      (hsize_t[]){1, (hsize_t)m_xres, (hsize_t)m_yres},
+                      nullptr);
+  H5Dread(dsetId, H5T_NATIVE_FLOAT, memSpace, fileSpace, H5P_DEFAULT,
+          buf.data());
+  N = m_buf.size();
+  if (N == 0) {
+    m_lowerValueStars = 0;
+    m_upperValueStars = 1;
+    return;
+  }
+  lo = size_t((m_percentileLowStars / 100.f) * (N - 1) + .5f);
+  hi = size_t((m_percentileHighStars / 100.f) * (N - 1) + .5f);
+  lo = std::clamp(lo, size_t(0), N - 1);
+  hi = std::clamp(hi, size_t(0), N - 1);
+  std::nth_element(buf.begin(), buf.begin() + lo, buf.end());
+  m_lowerValueStars = buf[lo];
+  std::nth_element(buf.begin(), buf.begin() + hi, buf.end());
+  m_upperValueStars = buf[hi];
+
+  // If these are the same, fall back to min/max
+  if (m_lowerValueStars == m_upperValueStars) {
+    m_lowerValueStars = std::numeric_limits<float>::max();
+    m_upperValueStars = std::numeric_limits<float>::lowest();
+    for (float v : buf) {
+      m_lowerValueStars = std::min(m_lowerValueStars, v);
+      m_upperValueStars = std::max(m_upperValueStars, v);
+    }
+  }
+
+  // Now do the gas temperature dataset
+  dsetId = H5Dopen2(fileId, "gas_temperature", H5P_DEFAULT);
+  fileSpace = H5Dget_space(dsetId);
+  H5Sselect_hyperslab(fileSpace, H5S_SELECT_SET, offset, nullptr,
+                      (hsize_t[]){1, (hsize_t)m_xres, (hsize_t)m_yres},
+                      nullptr);
+  H5Dread(dsetId, H5T_NATIVE_FLOAT, memSpace, fileSpace, H5P_DEFAULT,
+          buf.data());
+  N = m_buf.size();
+  if (N == 0) {
+    m_lowerValueTemp = 0;
+    m_upperValueTemp = 1;
+    return;
+  }
+  lo = size_t((m_percentileLowTemp / 100.f) * (N - 1) + .5f);
+  hi = size_t((m_percentileHighTemp / 100.f) * (N - 1) + .5f);
+  lo = std::clamp(lo, size_t(0), N - 1);
+  hi = std::clamp(hi, size_t(0), N - 1);
+  std::nth_element(buf.begin(), buf.begin() + lo, buf.end());
+  m_lowerValueTemp = buf[lo];
+  std::nth_element(buf.begin(), buf.begin() + hi, buf.end());
+  m_upperValueTemp = buf[hi];
+
+  // If these are the same, fall back to min/max
+  if (m_lowerValueTemp == m_upperValueTemp) {
+    m_lowerValueTemp = std::numeric_limits<float>::max();
+    m_upperValueTemp = std::numeric_limits<float>::lowest();
+    for (float v : buf) {
+      m_lowerValueTemp = std::min(m_lowerValueTemp, v);
+      m_upperValueTemp = std::max(m_upperValueTemp, v);
+    }
+  }
+
+  // Close all HDF5 handles
+  H5Sclose(memSpace);
+  H5Sclose(fileSpace);
+  H5Dclose(dsetId);
+  H5Fclose(fileId);
 }
 
 void RotationFrameLoader::setColormap(int colormapIdx) {
@@ -212,6 +340,32 @@ void RotationFrameLoader::setColormap(int colormapIdx) {
   }
 }
 
+double RotationFrameLoader::minValue() const {
+  if (m_currentDatasetKey == "dark_matter")
+    return m_lowerValueDM;
+  else if (m_currentDatasetKey == "gas")
+    return m_lowerValueGas;
+  else if (m_currentDatasetKey == "stars")
+    return m_lowerValueStars;
+  else if (m_currentDatasetKey == "gas_temperature")
+    return m_lowerValueTemp;
+  else
+    return 0.0; // fallback
+}
+
+double RotationFrameLoader::maxValue() const {
+  if (m_currentDatasetKey == "dark_matter")
+    return m_upperValueDM;
+  else if (m_currentDatasetKey == "gas")
+    return m_upperValueGas;
+  else if (m_currentDatasetKey == "stars")
+    return m_upperValueStars;
+  else if (m_currentDatasetKey == "gas_temperature")
+    return m_upperValueTemp;
+  else
+    return 1.0; // fallback
+}
+
 void RotationFrameLoader::nextRotationFrame() {
   if (m_dsetId < 0 || m_nFrames <= 0)
     return;
@@ -233,7 +387,9 @@ void RotationFrameLoader::loadNextFrame() {
           m_buf.data());
 
   // apply colormap into m_img
-  float range = m_upperValue - m_lowerValue;
+  float min = minValue();
+  float max = maxValue();
+  float range = max - min;
   if (range <= 0)
     range = 1.0f;
 
@@ -258,7 +414,7 @@ void RotationFrameLoader::loadNextFrame() {
         scanLine[3 * x + 2] = 0;
       } else {
         // 1) linear normalize
-        float normalizedValue = (rawBufferValue - m_lowerValue) / range;
+        float normalizedValue = (rawBufferValue - min) / range;
         normalizedValue = std::clamp(normalizedValue, 0.0f, 1.0f);
 
         // 2) arcsinh stretch

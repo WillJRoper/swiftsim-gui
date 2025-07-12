@@ -75,8 +75,6 @@ void DataWatcher::updateData() {
   double pct = parts[12].toDouble(&okPct);
   double starMass = parts[14].toDouble(&okStarMass); // In 10^10 Msun
   double redshift = parts[2].toDouble(&okRedshift);
-  qInfo() << "DataWatcher: step" << step << "percent run" << pct << "star mass"
-          << starMass << "redshift" << redshift;
   int bh = parts[6].toInt(&okBH);
   if (okStep)
     emit stepChanged(step);

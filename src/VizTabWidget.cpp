@@ -130,8 +130,7 @@ VizTabWidget::VizTabWidget(QWidget *parent)
   // If we have a file number, start loading it
   if (m_latestFileNumber >= 0) {
     emit startLoader(m_imageDirectory, m_currentFileNumber, m_currentDatasetKey,
-                     m_percentileLow, m_percentileHigh, int(m_colormap), m_fps,
-                     false);
+                     int(m_colormap), m_fps, false);
   }
 }
 
@@ -168,6 +167,7 @@ void VizTabWidget::scanImageDirectory() {
   }
   if (maxIdx > m_latestFileNumber) {
     m_latestFileNumber = maxIdx;
+    m_loader->setLatestFileNumber(m_latestFileNumber);
   }
 }
 
@@ -178,8 +178,7 @@ void VizTabWidget::setCurrentFileNumber(int idx) {
   m_currentFileNumber = idx;
   // restart loader
   emit startLoader(m_imageDirectory, m_currentFileNumber, m_currentDatasetKey,
-                   m_percentileLow, m_percentileHigh, int(m_colormap), m_fps,
-                   false);
+                   int(m_colormap), m_fps, false);
 }
 
 void VizTabWidget::setCurrentFileNumberKnob(int idx) {
@@ -220,8 +219,7 @@ void VizTabWidget::setDatasetKey(const QString &key) {
   // restart loader with new dataset
   if (m_currentFileNumber >= 0) {
     emit startLoader(m_imageDirectory, m_currentFileNumber, m_currentDatasetKey,
-                     m_percentileLow, m_percentileHigh, int(m_colormap), m_fps,
-                     false);
+                     int(m_colormap), m_fps, true);
   }
 }
 
@@ -230,8 +228,7 @@ void VizTabWidget::setPercentileRange(float low, float high) {
   m_percentileHigh = std::clamp(high, 0.0f, 100.0f);
   if (m_currentFileNumber >= 0) {
     emit startLoader(m_imageDirectory, m_currentFileNumber, m_currentDatasetKey,
-                     m_percentileLow, m_percentileHigh, int(m_colormap), m_fps,
-                     false);
+                     int(m_colormap), m_fps, false);
   }
 }
 

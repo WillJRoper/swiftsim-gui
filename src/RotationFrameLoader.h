@@ -24,10 +24,15 @@ public:
   explicit RotationFrameLoader(QObject *parent = nullptr);
   ~RotationFrameLoader();
 
+  double minValue() const;
+  double maxValue() const;
+
+  /// Set the latest available file number.
+  void setLatestFileNumber(int fileNumber) { m_latestFileNumber = fileNumber; }
+
 public slots:
   void startLoading(const QString &imageDirectory, int fileNumber,
-                    const QString &datasetKey, float percentileLow,
-                    float percentileHigh, int colormapIdx, int fps,
+                    const QString &datasetKey, int colormapIdx, int fps,
                     bool keepPercentiles = false);
 
   /**
@@ -57,12 +62,25 @@ private:
   QString m_imageDirectory;
   QString m_currentDatasetKey;
   int m_currentFileNumber = -1;
+  int m_latestFileNumber = -1;
 
   // normalization
-  float m_percentileLow = 5.0f;
-  float m_percentileHigh = 99.99f;
-  float m_lowerValue = 0.0f;
-  float m_upperValue = 1.0f;
+  float m_percentileLowDM = 10.0f;      // Dark matter default
+  float m_percentileHighDM = 99.99f;    // Dark matter default
+  float m_percentileLowGas = 5.0f;      // Gas default
+  float m_percentileHighGas = 99.99f;   // Gas default
+  float m_percentileLowStars = 32.0f;   // Stars default
+  float m_percentileHighStars = 99.99f; // Stars default
+  float m_percentileLowTemp = 5.0f;     // Temperature default
+  float m_percentileHighTemp = 99.99f;  // Temperature default
+  float m_lowerValueDM = 0.0f;          // Dark matter default
+  float m_upperValueDM = 1.0f;          // Dark matter default
+  float m_lowerValueGas = 0.0f;         // Gas default
+  float m_upperValueGas = 1.0f;         // Gas default
+  float m_lowerValueStars = 0.0f;       // Stars default
+  float m_upperValueStars = 1.0f;       // Stars default
+  float m_lowerValueTemp = 0.0f;        // Temperature default
+  float m_upperValueTemp = 1.0f;        // Temperature default
 
   // volume dims
   int m_nFrames = 0, m_xres = 0, m_yres = 0;
