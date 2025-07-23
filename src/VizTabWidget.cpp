@@ -123,15 +123,6 @@ VizTabWidget::VizTabWidget(QWidget *parent)
 
   // Make sure this widget gets focus and key events
   setFocusPolicy(Qt::StrongFocus);
-
-  // Scan the image directory initially
-  scanImageDirectory();
-
-  // If we have a file number, start loading it
-  if (m_latestFileNumber >= 0) {
-    emit startLoader(m_imageDirectory, m_currentFileNumber, m_currentDatasetKey,
-                     int(m_colormap), m_fps, false);
-  }
 }
 
 VizTabWidget::~VizTabWidget() {

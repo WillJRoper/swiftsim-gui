@@ -162,9 +162,12 @@ StepCounterWidget#stepWhite QLabel {
     color: rgba(255, 255, 255, 210);
 }
 
-/* ─── Log file display (QTextEdit) ─────────────────────── */ 
 QPlainTextEdit#logEditor {
-  font-family: "Hack Nerd Font Mono", monospace;
+  font-family:
+    "Hack Nerd Font Mono",
+    "DejaVu Sans Mono",    /* common on Linux */
+    "Consolas",            /* common on Windows */
+    "Courier New";         /* universally available */
   font-size: 9pt;
   color: #eaeaea;
 }

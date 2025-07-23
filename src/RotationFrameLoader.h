@@ -65,11 +65,11 @@ private:
   int m_latestFileNumber = -1;
 
   // normalization
-  float m_percentileLowDM = 10.0f;      // Dark matter default
+  float m_percentileLowDM = 5.0f;       // Dark matter default
   float m_percentileHighDM = 99.99f;    // Dark matter default
   float m_percentileLowGas = 5.0f;      // Gas default
   float m_percentileHighGas = 99.99f;   // Gas default
-  float m_percentileLowStars = 32.0f;   // Stars default
+  float m_percentileLowStars = 5.0f;    // Stars default
   float m_percentileHighStars = 99.99f; // Stars default
   float m_percentileLowTemp = 5.0f;     // Temperature default
   float m_percentileHighTemp = 99.99f;  // Temperature default
