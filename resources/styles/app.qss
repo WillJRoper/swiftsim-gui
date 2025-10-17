@@ -13,7 +13,7 @@ QToolTip {
 * {
   background-color: #000000;          /* pitch-black base */
   color: #E0E0E0;                     /* soft off-white text */
-  font-family: "Hack Nerd Font Mono", monospace;
+  font-family: "Eurostile Extended", monospace;
   font-size: 12
 }
 
@@ -22,8 +22,8 @@ QMenuBar::item:selected,
 QMenu::item:selected,
 QPushButton:hover,
 QTabBar::tab:selected {
-  color: #E50000 !important;
-  border-color: #E50000 !important;
+  color: #D51317 !important;
+  border-color: #D51317 !important;
 }
 
 /* ─── QMainWindow central widget ───────────────────────────────────── */
@@ -85,7 +85,7 @@ QTabBar::tab {
 }
 QTabBar::tab:selected {
   background: #222;
-  color: #E50000;
+  color: #D51317;
 }
 QTabBar::tab:hover {
   background: #222;
@@ -99,7 +99,7 @@ QLineEdit, QTextEdit, QPlainTextEdit {
   background-color: #111;
   border: 1px solid #444;
   border-radius: 4px;
-  selection-background-color: #E50000;
+  selection-background-color: #D51317;
   selection-color: black;
 }
 
@@ -134,6 +134,57 @@ QProgressBar {
 }
 
 QProgressBar::chunk {
-  background-color: #E50000;
+  background-color: #D51317;
   border-radius: 4px;
+}
+
+
+/* ─── Seven-segment display (QLCDNumber) ───────────────────── */
+QLCDNumber {
+    background-color: transparent;        /* deep black */
+    color: rgba(213, 19, 23, 180);                /* HAL-red segments */
+    padding: 2px;                  /* a tiny inner margin */
+}
+
+/* ─── Prefix label (“Step:”) ───────────────────────────────── */
+StepCounterWidget QLabel {
+    color: rgba(213, 19, 23, 180);                /* match the LCD’s red */
+    font-size: 72px;               /* adjust to taste */
+    padding-right: 4px;            /* space before the digits */
+}
+
+
+/* overrides for the “white” instances */
+QLCDNumber#lcdWhite {
+    color: rgba(255, 255, 255, 210);
+}
+StepCounterWidget#stepWhite QLabel {
+    color: rgba(255, 255, 255, 210);
+}
+
+QPlainTextEdit#logEditor {
+  font-family:
+    "Hack Nerd Font Mono",
+    "DejaVu Sans Mono",    /* common on Linux */
+    "Consolas",            /* common on Windows */
+    "Courier New";         /* universally available */
+  font-size: 9pt;
+  color: #eaeaea;
+}
+
+QLabel#vizTitleLabel {
+    /* control size */
+    font-size: 80pt;               /* tweak until you like it */
+    padding: 4px 8px;              /* a little breathing space around text */
+
+    /* 2001: A Space Odyssey feel */
+    color: rgba(255, 255, 255, 210); 
+    background: transparent;       /* or rgba(0,0,0,128) for semi-opaque */
+    letter-spacing: 2px;           /* spaced-out, futuristic vibe */
+    text-transform: uppercase;     /* all-caps, classic sci-fi look */
+}
+
+/* Style the inner viewport to get a semi-transparent black background */
+QPlainTextEdit#logEditor QWidget {
+  background-color: rgba(0, 0, 0, 120);    /* black @ ~47% opacity */
 }

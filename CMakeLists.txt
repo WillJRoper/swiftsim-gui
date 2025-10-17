@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.16)
 project(swift_gui VERSION 0.1 LANGUAGES CXX)
 
 # ─── Suppress CMake developer warnings ───────────────
-# (hides “This warning is for project developers. Use -Wno-dev to suppress it.”)
 set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS 1 CACHE BOOL "" FORCE)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -13,16 +12,12 @@ set(CMAKE_AUTOUIC ON)
 include(FetchContent)
 
 # ─── yaml-cpp options ──────────────────────────────────
-# Turn off building of tests, tools, and sandbox to eliminate those CMakeLists warnings
 set(YAML_CPP_BUILD_TESTS      OFF CACHE BOOL "" FORCE)
 set(YAML_CPP_BUILD_TOOLS      OFF CACHE BOOL "" FORCE)
 set(YAML_CPP_BUILD_CONVERTORS OFF CACHE BOOL "" FORCE)
 set(YAML_CPP_BUILD_SAMPLES    OFF CACHE BOOL "" FORCE)
 
-# 1) Try to find an installed yaml-cpp first
 find_package(yaml-cpp QUIET)
-
-# 2) If not found, pull it from GitHub
 if (NOT yaml-cpp_FOUND)
   message(STATUS "yaml-cpp not found: downloading via FetchContent")
   FetchContent_Declare(
@@ -33,13 +28,25 @@ if (NOT yaml-cpp_FOUND)
   FetchContent_MakeAvailable(yaml-cpp)
 endif()
 
-# 3) Qt
-find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
+# ─── Qt ─────────────────────────────────────────────────
+find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui SerialPort)
 
-# 4) Include dirs
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+# ─── HDF5 ───────────────────────────────────────────────
+find_package(HDF5 REQUIRED COMPONENTS CXX)
+if (HDF5_FOUND)
+  message(STATUS "Found HDF5: ${HDF5_CXX_LIBRARIES}")
+else()
+  message(FATAL_ERROR "HDF5 not found")
+endif()
 
-# 5) Sources & headers
+# ─── Include dirs ───────────────────────────────────────
+include_directories(
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+  ${HDF5_INCLUDE_DIRS}           # for H5Cpp.h
+)
+
+# ─── Sources & headers ──────────────────────────────────
 set(SOURCES
     src/main.cpp
     src/SimulationController.cpp
@@ -49,8 +56,12 @@ set(SOURCES
     src/HomeTabWidget.cpp
     src/LogTabWidget.cpp
     src/VizTabWidget.cpp
-    src/DiagTabWidget.cpp
-    src/RuntimeOptions.cpp
+    src/DataWatcher.cpp
+    src/StepCounter.cpp
+    src/PlotWidget.cpp
+    src/ImageProgressWidget.cpp
+    src/SerialHandler.cpp
+    src/RotationFrameLoader.cpp
 )
 
 set(HEADERS
@@ -61,15 +72,20 @@ set(HEADERS
     src/HomeTabWidget.h
     src/LogTabWidget.h
     src/VizTabWidget.h
-    src/DiagTabWidget.h
-    src/RuntimeOptions.h
+    src/StyledSplitter.h
+    src/DataWatcher.h
+    src/StepCounter.h
+    src/PlotWidget.h
+    src/ImageProgressWidget.h
+    src/SerialHandler.h
+    src/RotationFrameLoader.h
 )
 
-# 6) QRCs
+# ─── QRCs ────────────────────────────────────────────────
 qt6_add_resources(IMAGE_RES resources/images.qrc)
 qt6_add_resources(STYLE_QRC resources/styles.qrc)
 
-# 7) Executable
+# ─── Executable ─────────────────────────────────────────
 add_executable(${PROJECT_NAME}
     ${SOURCES}
     ${HEADERS}
@@ -77,16 +93,19 @@ add_executable(${PROJECT_NAME}
 )
 target_sources(${PROJECT_NAME} PRIVATE ${STYLE_QRC})
 
-# 8) Link
+# ─── Link ────────────────────────────────────────────────
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
       Qt6::Widgets
       Qt6::Core
       Qt6::Gui
+      Qt6::SerialPort
       yaml-cpp
+      ${HDF5_CXX_LIBRARIES}       # HDF5 C++ API
+      ${HDF5_LIBRARIES}           # HDF5 C API
 )
 
-# 9) Runtime output
+# ─── Runtime output ─────────────────────────────────────
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}
 )

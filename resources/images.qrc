@@ -5,4 +5,16 @@
   <qresource prefix="/">
     <file>images/cluster_bkg.png</file>
   </qresource>
+  <qresource prefix="/">
+    <file>images/evolution.jpg</file>
+  </qresource>
+  <qresource prefix="/">
+    <file>images/flamingo-logo.png</file>
+  </qresource>
+  <qresource prefix="/">
+    <file>images/sussex-logo.png</file>
+  </qresource>
+  <qresource prefix="/">
+    <file>images/ESA.png</file>
+  </qresource>
 </RCC>

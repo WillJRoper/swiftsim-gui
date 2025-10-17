@@ -1,72 +1,110 @@
 #pragma once
 
+#include "PlotWidget.h"
+#include "SerialHandler.h"
 #include <QAction>
 #include <QActionGroup>
 #include <QLabel>
 #include <QMainWindow>
 #include <QProgressBar>
 #include <QPropertyAnimation>
+#include <QStackedWidget>
+#include <QThread>
 
 class SimulationController;
 class LogTabWidget;
 class QMenu;
 class QTabWidget;
-class RuntimeOptionsDialog;
+class CommandLineParser;
+class StyledSplitter;
+class DataWatcher;
+class StepCounterWidget;
+class PlotWidget;
+class ImageProgressWidget;
+class VizTabWidget;
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
 
 public:
-  explicit MainWindow(SimulationController *simCtrl, QWidget *parent = nullptr);
+  explicit MainWindow(SimulationController *simCtrl,
+                      CommandLineParser *cmdParser, QWidget *parent = nullptr);
+
+private slots:
+  /// Control for swapping the top page in the stacked widget at the top
+  /// of the UI
+  void rotateTopPage();
 
 private:
   // setup routines
+  void createSplitterAndLayouts();
   void createActions();
-  void createMenus();
-  void createTabs();
+  void createsBottom(CommandLineParser *cmdParser);
   void createProgressBar();
+  void createPlots();
+  void createVisualisations();
+  void createDataWatcher();
+  void createCounters();
 
   void switchToTab(int index);
 
   // slots
   void changeLogFontSize();
 
-  // data
   SimulationController *m_simCtrl;
+  DataWatcher *m_dataWatcher = nullptr;
+  QThread *m_dwThread = nullptr;
   LogTabWidget *m_logTab;
-  QTabWidget *m_tabs;
+  QStackedWidget *m_bottomWidget;
 
-  // progress bar
-  QProgressBar *m_progressBar;
-  QPropertyAnimation *m_progressAnim;
+  // Sections for splitter layout
+  QStackedWidget *m_topStack = nullptr;
+  QWidget *m_middleGap = nullptr;
+  StyledSplitter *m_splitter = nullptr;
+
+  // Progress bar
+  ImageProgressWidget *m_progressWidget;
+
+  // Counters
+  StepCounterWidget *m_stepCounter;
+  StepCounterWidget *m_wallClockCounter;
+  StepCounterWidget *m_starsFormedCounter;
+  StepCounterWidget *m_blackHolesFormedCounter;
+  StepCounterWidget *m_ParticleUpdateCounter;
+  StepCounterWidget *m_redshiftCounter;
+  StepCounterWidget *m_livePercentCounter;
+
+  // Functions for updating UI elements
+  void updateProgressBar(double percent);
+  void updateCurrentTimeLabel(double t);
+  void updateStepCounter(long long step);
+  void updateWallClockCounter(double t);
+  void updateStarsFormedCounter(double mass);
+  void updateBlackHolesFormedCounter(long long count);
+  void updateParticleUpdateCounter(long long count);
+  void updateRedshiftCounter(double redshift);
+  void updatePercentRunCounter(double percent);
+  void buttonUpdateUI(int id);
+
+  // Plots
+  PlotWidget *m_wallTimePlot;
+  PlotWidget *m_particlePlot;
+  PlotWidget *m_updatesPlot;
+
+  // Visualization tab (4 rotating‐cube datasets)
+  VizTabWidget *m_vizTab;
 
   // Current time label
   QLabel *m_currentLabel;
   int m_currentLabelWidth = 12;
   int m_currentLabelPrecision = 3;
 
-  // Runtime options dialog
-  RuntimeOptionsDialog *m_runtimeOptsDlg = nullptr;
+  // Actions for the menu bar
+  QTimer *m_topRotateTimer = nullptr;
 
-  // actions
-  QAction *m_newSimAct;
-  QAction *m_openSimAct;
-  QAction *m_configureAct;
-  QAction *m_compileAct;
-  QAction *m_dryRunAct;
-  QAction *m_runAct;
-  QAction *m_img_RunAct;
-  QAction *m_logFontSizeAct;
-  QAction *m_scaleLinearAct;
-  QAction *m_scaleLogAct;
-  QAction *m_scaleAutoAct;
-  QActionGroup *m_scaleGroup;
-  QAction *m_runtimeOptsAct;
+  /// Our serial handler for interfacing with the controls
+  SerialHandler *m_serialHandler = nullptr;
 
-  // menus
-  QMenu *m_fileMenu;
-  QMenu *m_swiftMenu;
-  QMenu *m_logMenu;
-  QMenu *m_vizMenu;
-  QMenu *m_imagesMenu;
+  /// Sets up serial I/O on the given port and hooks up debug slots
+  void createSerialHandler(const QString &portPath);
 };

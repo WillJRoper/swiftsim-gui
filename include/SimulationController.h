@@ -1,12 +1,18 @@
 #pragma once
 
+// ─── Work around moc choking on QT_IGNORE_DEPRECATIONS pragmas ────
+#ifdef Q_MOC_RUN
+// moc defines Q_MOC_RUN; redefine the macro to a no-op so
+// moc never sees the embedded pragmas in Qt headers.
+#undef QT_IGNORE_DEPRECATIONS
+#define QT_IGNORE_DEPRECATIONS(X) X
+#endif
+
 #include <QFile> // for m_logFile
 #include <QObject>
 #include <QProcess>
 #include <QString>
 #include <QStringList>
-
-class RuntimeOptionsDialog;
 
 class SimulationController : public QObject {
   Q_OBJECT
@@ -22,7 +28,8 @@ public:
   explicit SimulationController(
       QObject *parent = nullptr,
       const QString &simDir = QStringLiteral("mock_sim"),
-      const QString &swiftDir = QString());
+      const QString &swiftDir = QString(),
+      const std::string &paramsPath = std::string("params.yaml"));
 
   ~SimulationController();
 
@@ -34,18 +41,13 @@ public:
   double startTime() const;
   double endTime() const;
 
-  void readTimeIntegrationParams();
-
-  // Runtime option
-  RuntimeOptionsDialog *m_runtimeOpts = nullptr;
+  void readTimeIntegrationParams(const std::string &path = "params.yaml");
 
 public slots:
   void newSimulation();
   void openSimulation();
   void configure();
   void compile();
-  void runDryRun();
-  void run();
 
 signals:
   void logTextChanged();

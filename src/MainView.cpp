@@ -1,297 +1,504 @@
+#include <complex>
+#include <iostream>
 
-#include "MainView.h"
-#include "DiagTabWidget.h"
+#include "CommandLineParser.h"
+#include "DataWatcher.h"
 #include "HomeTabWidget.h"
+#include "ImageProgressWidget.h"
 #include "LogTabWidget.h"
-#include "RuntimeOptions.h"
+#include "MainView.h"
+#include "PlotWidget.h"
+#include "SerialHandler.h"
 #include "SimulationController.h"
+#include "StepCounter.h"
+#include "StyledSplitter.h"
 #include "VizTabWidget.h"
 
 #include <QAction>
+#include <QCoreApplication>
+#include <QCursor>
+#include <QDebug>
 #include <QDir>
 #include <QInputDialog>
 #include <QMenu>
 #include <QMenuBar>
+#include <QSplitter>
+#include <QSplitterHandle>
 #include <QStatusBar>
 #include <QTabBar>
 #include <QTabWidget>
 #include <QVBoxLayout>
 
-MainWindow::MainWindow(SimulationController *simCtrl, QWidget *parent)
+MainWindow::MainWindow(SimulationController *simCtrl,
+                       CommandLineParser *cmdParser, QWidget *parent)
     : QMainWindow(parent), m_simCtrl(simCtrl) {
 
   // Set the window title and size to fill the screen
   setWindowTitle(tr("Swift GUI"));
-  setMinimumSize(800, 600);
+  setMinimumSize(540, 960); // reasonable minimum size
   setWindowState(Qt::WindowMaximized);
   setWindowIcon(QIcon(":/images/swift-logo-white.png")); // set the icon
 
   // Set up each of the UI elements
-  createTabs();
-  createActions();
-  createMenus();
+  createSplitterAndLayouts();
+  createsBottom(cmdParser);
   createProgressBar();
+  createPlots();
+  createDataWatcher();
+  createVisualisations();
+  createSerialHandler("/dev/cu.usbmodem2101");
+  createCounters();
+
+  // Connection all the signals and slots
+  createActions();
 }
 
+/**
+ * @brief Creates all QAction shortcuts and wires up DataWatcher signals.
+ *
+ * Shortcuts:
+ *   - H/L/V/D : switch tabs (Home/Log/Visualise)
+ *   - 0       : Dashboard (counter + progress bar)
+ *   - 7       : Wall-Clock Time plot (page 1)
+ *   - 8       : Percent-Complete plot (page 2)
+ *   - 9       : Particle-Counts plot (page 3)
+ *
+ * Signals → slots:
+ *   - percentRunChanged    → updateProgressBar()
+ *   - scaleFactorChanged   → updateCurrentTimeLabel()
+ *   - stepChanged          → updateStepCounter()
+ *
+ */
 void MainWindow::createActions() {
-  // File actions
-  m_newSimAct = new QAction(tr("&New Simulation"), this);
-  m_newSimAct->setShortcut(QKeySequence::New);
-  m_newSimAct->setShortcutContext(Qt::ApplicationShortcut);
-  m_openSimAct = new QAction(tr("&Open Simulation…"), this);
-  m_openSimAct->setShortcut(QKeySequence::Open);
-  m_openSimAct->setShortcutContext(Qt::ApplicationShortcut);
-  connect(m_newSimAct, &QAction::triggered, m_simCtrl,
-          &SimulationController::newSimulation);
-  connect(m_openSimAct, &QAction::triggered, m_simCtrl,
-          &SimulationController::openSimulation);
-
-  // Swiftsim actions
-  m_configureAct = new QAction(tr("&Configure…"), this);
-  m_compileAct = new QAction(tr("&Compile"), this);
-  m_dryRunAct = new QAction(tr("&Dry Run"), this);
-  m_dryRunAct->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_D));
-  m_runAct = new QAction(tr("&Run"), this);
-  m_runAct->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_R));
-  m_img_RunAct = new QAction(tr("&Run with Imaging"), this);
-  m_img_RunAct->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_I));
-  connect(m_configureAct, &QAction::triggered, m_simCtrl,
-          &SimulationController::configure);
-  connect(m_compileAct, &QAction::triggered, m_simCtrl,
-          &SimulationController::compile);
-  connect(m_dryRunAct, &QAction::triggered, m_simCtrl,
-          &SimulationController::runDryRun);
-  connect(m_runAct, &QAction::triggered, m_simCtrl, &SimulationController::run);
-
-  // Log menu “Font Size…” action
-  m_logFontSizeAct = new QAction(tr("Font Size…"), this);
-  connect(m_logFontSizeAct, &QAction::triggered, this,
-          &MainWindow::changeLogFontSize);
-
-  // Connect the simulation controller to the log tab
-  connect(m_simCtrl, &SimulationController::simulationDirectoryChanged,
-          m_logTab, [this]() {
-            const QString path = m_simCtrl->simulationDirectory() + "/log.txt";
-            m_logTab->setFilePath(path);
-          });
-
-  // Connect the simulation controller to the log tab
-  connect(m_simCtrl, &SimulationController::newLogLinesWritten, m_logTab,
-          [this]() { m_logTab->updateLogView(); });
-
-  // Connect the start of the run to the log tab
-  connect(m_simCtrl, &SimulationController::runStarted, this, [this]() {
-    this->switchToTab(1); // Switch to the log tab
-  });
-
-  // Tab swtiching actions
+  // ─── Tab-switching shortcuts ───────────────────────────────────
   QAction *homeTabAct = new QAction(tr("Home"), this);
   homeTabAct->setShortcut(QKeySequence(Qt::Key_H));
   homeTabAct->setShortcutContext(Qt::ApplicationShortcut);
-  connect(homeTabAct, &QAction::triggered, this, [this]() { switchToTab(0); });
+  connect(homeTabAct, &QAction::triggered, this, [this] { switchToTab(0); });
   addAction(homeTabAct);
   QAction *logTabAct = new QAction(tr("Log"), this);
   logTabAct->setShortcut(QKeySequence(Qt::Key_L));
   logTabAct->setShortcutContext(Qt::ApplicationShortcut);
-  connect(logTabAct, &QAction::triggered, this, [this]() { switchToTab(1); });
+  connect(logTabAct, &QAction::triggered, this, [this] { switchToTab(1); });
   addAction(logTabAct);
   QAction *vizTabAct = new QAction(tr("Visualise"), this);
   vizTabAct->setShortcut(QKeySequence(Qt::Key_V));
   vizTabAct->setShortcutContext(Qt::ApplicationShortcut);
-  connect(vizTabAct, &QAction::triggered, this, [this]() { switchToTab(2); });
+  connect(vizTabAct, &QAction::triggered, this, [this] { switchToTab(2); });
   addAction(vizTabAct);
-  QAction *diagTabAct = new QAction(tr("Diagnostics"), this);
-  diagTabAct->setShortcut(QKeySequence(Qt::Key_D));
-  diagTabAct->setShortcutContext(Qt::ApplicationShortcut);
-  connect(diagTabAct, &QAction::triggered, this, [this]() { switchToTab(3); });
-  addAction(diagTabAct);
 
-  // Visualisation → Scale Mode
-  m_scaleGroup = new QActionGroup(this);
-  m_scaleGroup->setExclusive(true);
-
-  m_scaleLinearAct = new QAction(tr("Linear Scale"), this);
-  m_scaleLinearAct->setCheckable(true);
-  m_scaleLinearAct->setChecked(true);
-  m_scaleGroup->addAction(m_scaleLinearAct);
-
-  m_scaleLogAct = new QAction(tr("Logarithmic Scale"), this);
-  m_scaleLogAct->setCheckable(true);
-  m_scaleGroup->addAction(m_scaleLogAct);
-
-  m_scaleAutoAct = new QAction(tr("Auto Min/Max"), this);
-  m_scaleAutoAct->setCheckable(true);
-  m_scaleGroup->addAction(m_scaleAutoAct);
-
-  // Connect each to the VizTabWidget slot
-  connect(m_scaleLinearAct, &QAction::triggered, this, [this]() {
-    if (auto *w = qobject_cast<VizTabWidget *>(m_tabs->widget(2)))
-      w->setScaleMode(VizTabWidget::ScaleMode::Linear);
+  // ─── Switch to dark matter visualisation (1) ────────────────
+  QAction *showDarkMatterViz =
+      new QAction(tr("Dark Matter Visualisation"), this);
+  showDarkMatterViz->setShortcut(QKeySequence(Qt::Key_1));
+  showDarkMatterViz->setShortcutContext(Qt::ApplicationShortcut);
+  connect(showDarkMatterViz, &QAction::triggered, this, [this] {
+    m_vizTab->setDatasetKey("dark_matter");
+    m_bottomWidget->setCurrentIndex(2);
   });
-  connect(m_scaleLogAct, &QAction::triggered, this, [this]() {
-    if (auto *w = qobject_cast<VizTabWidget *>(m_tabs->widget(2)))
-      w->setScaleMode(VizTabWidget::ScaleMode::Logarithmic);
-  });
-  connect(m_scaleAutoAct, &QAction::triggered, this, [this]() {
-    if (auto *w = qobject_cast<VizTabWidget *>(m_tabs->widget(2)))
-      w->setScaleMode(VizTabWidget::ScaleMode::AutoMinMax);
-  });
+  addAction(showDarkMatterViz);
 
-  // Runtime options action for bringing up the dialog
-  m_runtimeOptsAct = new QAction(tr("Runtime Options…"), this);
-  connect(m_runtimeOptsAct, &QAction::triggered, this, [this]() {
-    // Create a fresh dialog each time and run it modally:
-    if (m_simCtrl->m_runtimeOpts->exec() == QDialog::Accepted) {
-      // optional: react to OK here if you need to do something immediately
-    }
+  // ─── Switch to gas visualisation (2) ────────────────────────
+  QAction *showGasViz = new QAction(tr("Gas Visualisation"), this);
+  showGasViz->setShortcut(QKeySequence(Qt::Key_2));
+  showGasViz->setShortcutContext(Qt::ApplicationShortcut);
+  connect(showGasViz, &QAction::triggered, this, [this] {
+    m_vizTab->setDatasetKey("gas");
+    m_bottomWidget->setCurrentIndex(2);
   });
+  addAction(showGasViz);
+
+  // ─── Switch to stars visualisation (3) ──────────────────────
+  QAction *showStarsViz = new QAction(tr("Stars Visualisation"), this);
+  showStarsViz->setShortcut(QKeySequence(Qt::Key_3));
+  showStarsViz->setShortcutContext(Qt::ApplicationShortcut);
+  connect(showStarsViz, &QAction::triggered, this, [this] {
+    m_vizTab->setDatasetKey("stars");
+    m_bottomWidget->setCurrentIndex(2);
+  });
+  addAction(showStarsViz);
+
+  // ─── Switch to gas temperature visualisation (4) ─────────────
+  QAction *showGasTempViz =
+      new QAction(tr("Gas Temperature Visualisation"), this);
+  showGasTempViz->setShortcut(QKeySequence(Qt::Key_4));
+  showGasTempViz->setShortcutContext(Qt::ApplicationShortcut);
+  connect(showGasTempViz, &QAction::triggered, this, [this] {
+    m_vizTab->setDatasetKey("gas_temperature");
+    m_bottomWidget->setCurrentIndex(2);
+  });
+  addAction(showGasTempViz);
+
+  // ─── Dashboard view shortcut (0) ─────────────────────────────
+  QAction *showDashboard = new QAction(tr("Dashboard"), this);
+  showDashboard->setShortcut(QKeySequence(Qt::Key_0));
+  showDashboard->setShortcutContext(Qt::ApplicationShortcut);
+  connect(showDashboard, &QAction::triggered, this,
+          [this] { m_topStack->setCurrentIndex(0); });
+  addAction(showDashboard);
+
+  // ─── Step counter shortcut ──────────────────────────────
+  QAction *showStepCounter = new QAction(tr("Step Counter"), this);
+  showStepCounter->setShortcut(QKeySequence(Qt::Key_7));
+  showStepCounter->setShortcutContext(Qt::ApplicationShortcut);
+  connect(showStepCounter, &QAction::triggered, this,
+          [this] { m_topStack->setCurrentIndex(1); });
+  addAction(showStepCounter);
+
+  // ─── Plot view shortcuts ──────────────────────────────────────
+  QAction *showWallTime = new QAction(tr("Wall-Clock Plot"), this);
+  showWallTime->setShortcut(QKeySequence(Qt::Key_8));
+  showWallTime->setShortcutContext(Qt::ApplicationShortcut);
+  connect(showWallTime, &QAction::triggered, this,
+          [this] { m_topStack->setCurrentIndex(2); });
+  addAction(showWallTime);
+
+  QAction *showParticles = new QAction(tr("Particles Plot"), this);
+  showParticles->setShortcut(QKeySequence(Qt::Key_9));
+  showParticles->setShortcutContext(Qt::ApplicationShortcut);
+  connect(showParticles, &QAction::triggered, this,
+          [this] { m_topStack->setCurrentIndex(3); });
+  addAction(showParticles);
+
+  // ─── DataWatcher → MainWindow ───────────────────────────
+  connect(m_dataWatcher, &DataWatcher::stepChanged, this,
+          &MainWindow::updateStepCounter, Qt::QueuedConnection);
+  connect(m_dataWatcher, &DataWatcher::totalWallClockTimeChanged, this,
+          &MainWindow::updateWallClockCounter, Qt::QueuedConnection);
+  connect(m_dataWatcher, &DataWatcher::starMassChanged, this,
+          &MainWindow::updateStarsFormedCounter, Qt::QueuedConnection);
+  connect(m_dataWatcher, &DataWatcher::numberofBHChanged, this,
+          &MainWindow::updateBlackHolesFormedCounter, Qt::QueuedConnection);
+  connect(m_dataWatcher, &DataWatcher::totalPartUpdatesChanged, this,
+          &MainWindow::updateParticleUpdateCounter, Qt::QueuedConnection);
+  connect(m_dataWatcher, &DataWatcher::percentRunChanged, this,
+          &MainWindow::updateProgressBar, Qt::QueuedConnection);
+  connect(m_dataWatcher, &DataWatcher::redshiftChanged, this,
+          &MainWindow::updateRedshiftCounter, Qt::QueuedConnection);
+  connect(m_dataWatcher, &DataWatcher::percentRunChanged, this,
+          &MainWindow::updatePercentRunCounter, Qt::QueuedConnection);
+
+  // ─── DataWatcher → PlotWidgets ──────────────────────────
+  connect(m_dataWatcher, &DataWatcher::wallClockTimeForStepChanged,
+          m_wallTimePlot, &PlotWidget::refresh, Qt::QueuedConnection);
+
+  connect(m_dataWatcher, &DataWatcher::numberOfGPartsChanged, m_particlePlot,
+          &PlotWidget::refresh, Qt::QueuedConnection);
+
+  // ─── Update the top box top widget on a Timer ─────────────────────
+  m_topRotateTimer = new QTimer(this);
+  m_topRotateTimer->setInterval(15000);
+  connect(m_topRotateTimer, &QTimer::timeout, this, &MainWindow::rotateTopPage);
+  m_topRotateTimer->start();
+
+  // ─── Map control buttons GUI updates ────────────────────
+  connect(m_serialHandler, &SerialHandler::buttonPressed, this,
+          &MainWindow::buttonUpdateUI);
+
+  // Reset idle timer on any button press:
+  connect(m_serialHandler, &SerialHandler::buttonPressed, m_vizTab,
+          &VizTabWidget::resetIdleTimer);
+
+  // Reset idle timer on any knob turn:
+  connect(m_serialHandler, &SerialHandler::rotatedCW, m_vizTab,
+          &VizTabWidget::resetIdleTimer);
+  connect(m_serialHandler, &SerialHandler::rotatedCCW, m_vizTab,
+          &VizTabWidget::resetIdleTimer);
+  connect(m_serialHandler, &SerialHandler::rotatedCW, m_logTab,
+          &LogTabWidget::resetIdleTimer);
+  connect(m_serialHandler, &SerialHandler::rotatedCCW, m_logTab,
+          &LogTabWidget::resetIdleTimer);
+
+  // ─── Edit low‐percentile (“[”) ────────────────────────────────
+  QAction *editLowPct = new QAction(tr("Edit Low Percentile"), this);
+  editLowPct->setShortcut(QKeySequence(Qt::Key_BracketLeft));
+  editLowPct->setShortcutContext(Qt::ApplicationShortcut);
+  connect(editLowPct, &QAction::triggered, this, [this] {
+    // switch to Visualise tab if not already there:
+    m_bottomWidget->setCurrentIndex(2);
+    m_vizTab->promptLowPercentile();
+  });
+  addAction(editLowPct);
+
+  // ─── Edit high‐percentile (“]”) ───────────────────────────────
+  QAction *editHighPct = new QAction(tr("Edit High Percentile"), this);
+  editHighPct->setShortcut(QKeySequence(Qt::Key_BracketRight));
+  editHighPct->setShortcutContext(Qt::ApplicationShortcut);
+  connect(editHighPct, &QAction::triggered, this, [this] {
+    m_bottomWidget->setCurrentIndex(2);
+    m_vizTab->promptHighPercentile();
+  });
+  addAction(editHighPct);
 }
 
-void MainWindow::createMenus() {
-  // File menu: add the actions for creating/opening simulations and working
-  // with the file system
-  m_fileMenu = menuBar()->addMenu(tr("&File"));
-  m_fileMenu->addAction(m_newSimAct);
-  m_fileMenu->addAction(m_openSimAct);
+/**
+ * @brief Creates the main splitter and top/bottom sections of the window.
+ *
+ * Sets up a vertical splitter with:
+ *  - Page 0: dashboard (counter + progress bar)
+ *  - Pages 1–3: reserved for plots (added later in createPlots())
+ *  - A middle expandable spacer
+ *  - A bottom QTabWidget for Home/Log/Visualise
+ */
+void MainWindow::createSplitterAndLayouts() {
+  // Create a vertical splitter; children non‐collapsible
+  m_splitter = new StyledSplitter(Qt::Vertical, this);
+  m_splitter->setChildrenCollapsible(false);
+  m_splitter->setStyleSheet(R"(
+        QSplitter::handle { background-color: #444; height: 4px; }
+    )");
 
-  // SWIFT menu: add the actions for interacting with the simulation
-  m_swiftMenu = menuBar()->addMenu(tr("&Swiftsim"));
-  m_swiftMenu->addAction(m_configureAct);
-  m_swiftMenu->addAction(m_compileAct);
-  m_swiftMenu->addAction(m_runtimeOptsAct);
-  m_swiftMenu->addAction(m_dryRunAct);
-  m_swiftMenu->addAction(m_runAct);
+  // ─── Top: a stacked widget (0: dashboard; 1–3: plots) ───────
+  m_topStack = new QStackedWidget(this);
+  m_topStack->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+  m_splitter->addWidget(m_topStack);
 
-  // Log menu: add the font size action
-  m_logMenu = menuBar()->addMenu(tr("&Log"));
-  m_logMenu->addAction(m_logFontSizeAct);
+  // Page 0: dashboard container
+  auto *dashPage = new QWidget(this);
+  auto *dashLayout = new QVBoxLayout(dashPage);
+  dashLayout->setContentsMargins(0, 0, 0, 0);
+  dashLayout->setSpacing(4);
+  m_topStack->addWidget(dashPage);
 
-  // Visualisation menu: just add the pre-built actions
-  QMenu *vizMenu = menuBar()->addMenu(tr("&Visualisation"));
-  vizMenu->addAction(m_scaleLinearAct);
-  vizMenu->addAction(m_scaleLogAct);
-  vizMenu->addAction(m_scaleAutoAct);
+  // ─── Middle: blank expandable spacer ─────────────────────────
+  m_middleGap = new QWidget(this);
+  m_middleGap->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+  m_splitter->addWidget(m_middleGap);
 
-  // Image selectiom menu: add the actions for selecting the image
-  m_imagesMenu = vizMenu->addMenu(tr("&Images"));
+  // ─── Bottom: stacked widget ─────────────────────────────────
+  m_bottomWidget = new QStackedWidget(this);
+  m_bottomWidget->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+  m_splitter->addWidget(m_bottomWidget);
 
-  // Check for the what images are available
-  connect(m_imagesMenu, &QMenu::aboutToShow, this, [this]() {
-    m_imagesMenu->clear();
+  // Set initial splitter sizes (approx. 27% / 25% / 48%)
+  int totalH = height();
+  int topH = int(0.2735 * totalH + 0.5);
+  int midH = int(0.2564 * totalH + 0.5);
+  int botH = totalH - topH - midH;
+  m_splitter->setSizes({topH, midH, botH});
 
-    // Find all sub-directories under <simDir>/images
-    QDir imagesRoot(m_simCtrl->simulationDirectory() + "/images");
-    QStringList entries =
-        imagesRoot.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
-
-    // For each entry, add an action
-    for (int i = 0; i < entries.size(); ++i) {
-      const QString name = entries.at(i);
-      QAction *act = m_imagesMenu->addAction(name);
-      act->setData(name);
-
-      // First nine get digit shortcuts, context=app-wide
-      if (i < 9) {
-        QKeySequence key(Qt::Key_1 + i);
-        act->setShortcut(key);
-        act->setShortcutContext(Qt::ApplicationShortcut);
-      }
-
-      // When selected, tell the VizTabWidget to load that set
-      connect(act, &QAction::triggered, this, [this, name]() {
-        auto *viz = qobject_cast<VizTabWidget *>(m_tabs->widget(2));
-        if (viz) {
-          viz->setImageDirectory("images/" + name);
-          switchToTab(2); // Switch to the Viz tab
-        }
-      });
-    }
-
-    // If no entries, show a placeholder
-    if (entries.isEmpty()) {
-      m_imagesMenu->addAction(tr("<no sets found>"))->setEnabled(false);
-    }
-  });
+  setCentralWidget(m_splitter);
 }
 
-void MainWindow::createTabs() {
-
-  // Create the tabs
-  m_tabs = new QTabWidget(this);
-
-  // Make the tabs left aligned and "nice" looking
-  m_tabs->tabBar()->setExpanding(false);
-  m_tabs->setDocumentMode(true);
-
-  m_tabs->addTab(new HomeTabWidget, tr("Home"));
-  m_logTab = new LogTabWidget(this);
-  m_logTab->setFilePath(m_simCtrl->simulationDirectory() + "/log.txt");
-  m_tabs->addTab(m_logTab, tr("Log"));
-  m_tabs->addTab(new VizTabWidget(m_simCtrl), tr("Visualise"));
-  m_tabs->addTab(new DiagTabWidget, tr("Diagnostics"));
-
-  auto *container = new QWidget(this);
-  auto *layout = new QVBoxLayout(container);
-  layout->setContentsMargins(0, 0, 0, 0);
-  layout->addWidget(m_tabs);
-  setCentralWidget(container);
+void MainWindow::createsBottom(CommandLineParser *cmdParser) {
+  m_bottomWidget->addWidget(new HomeTabWidget);
+  m_logTab = new LogTabWidget(cmdParser->logFilePath(), this);
+  m_bottomWidget->addWidget(m_logTab);
 }
 
+/**
+ * @brief Populates the dashboard page (index 0) with the step counter and
+ * timeline.
+ *
+ * Builds a timeline widget containing a QProgressBar and QLabel, then
+ * adds it below the existing m_stepCounter in the dashboard.
+ */
 void MainWindow::createProgressBar() {
-  // ─── Build a custom “timeline” widget ─────────────────────────
+  // Build timeline container
   auto *timeline = new QWidget(this);
   auto *tlLayout = new QHBoxLayout(timeline);
   tlLayout->setContentsMargins(0, 2, 0, 2);
   tlLayout->setSpacing(8);
 
-  // The progress bar
-  m_progressBar = new QProgressBar(timeline);
-  m_progressBar->setRange(0, 100);
-  m_progressBar->setTextVisible(false);
-  m_progressBar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-  tlLayout->addWidget(m_progressBar);
+  // Image‐based progress “bar”
+  m_progressWidget =
+      new ImageProgressWidget(":/images/evolution.jpg", timeline);
+  // start empty
+  m_progressWidget->setProgress(0.0);
+  m_progressWidget->setSizePolicy(QSizePolicy::Expanding,
+                                  QSizePolicy::Preferred);
+  tlLayout->addWidget(m_progressWidget);
 
-  // Smooth animation of the bar value
-  m_progressAnim = new QPropertyAnimation(m_progressBar, "value", this);
-  m_progressAnim->setDuration(300);
-  m_progressAnim->setEasingCurve(QEasingCurve::OutCubic);
+  // Add to dashboard page
+  auto *dashPage = m_topStack->widget(0);
+  auto *vbox = static_cast<QVBoxLayout *>(dashPage->layout());
+  vbox->addWidget(timeline);
+}
 
-  // Current time label (starting at the start time)
-  double t0 = m_simCtrl->startTime();
-  QString txt = QString("%1").arg(t0, m_currentLabelWidth, 'e',
+/**
+ * @brief Creates the plot pages (indexes 1–3) in the topStack.
+ *
+ * Page 1: Wall‐Clock Time vs Scale Factor
+ * Page 2: Percent Complete vs Scale Factor
+ * Page 3: Combined Particle Counts vs Scale Factor
+ */
+void MainWindow::createPlots() {
+  // 1) Repo root is wherever the EXE lives
+  QDir repoRoot(QCoreApplication::applicationDirPath());
+
+  // 2) Compute absolute script & plot dirs
+  const QString scriptsDir = repoRoot.filePath("scripts");
+  const QString plotsDir = repoRoot.filePath("plots");
+  QDir().mkpath(plotsDir);
+
+  // Page 1: Wall‐Clock Time
+  const QString wallScript = QDir(scriptsDir).filePath("plot_wall_time.py");
+  const QString wallPng = QDir(plotsDir).filePath("wall_time_plot.png");
+  m_wallTimePlot = new PlotWidget(
+      wallScript, m_simCtrl->simulationDirectory() + "/gui_data.txt", wallPng,
+      this);
+  m_topStack->addWidget(m_wallTimePlot);
+
+  // Page 2: Combined Particle Counts
+  const QString partScript = QDir(scriptsDir).filePath("plot_particles.py");
+  const QString partPng = QDir(plotsDir).filePath("particles_plot.png");
+  m_particlePlot = new PlotWidget(
+      partScript, m_simCtrl->simulationDirectory() + "/gui_data.txt", partPng,
+      this);
+  m_topStack->addWidget(m_particlePlot);
+
+  // Page 3: Particle Update Counts
+  const QString updatesScript = QDir(scriptsDir).filePath("plot_updates.py");
+  const QString updatesPng = QDir(plotsDir).filePath("update_plot.png");
+  m_updatesPlot = new PlotWidget(
+      updatesScript, m_simCtrl->simulationDirectory() + "/gui_data.txt",
+      updatesPng, this);
+  m_topStack->addWidget(m_updatesPlot);
+}
+
+void MainWindow::updateProgressBar(double pcent) {
+  // Ensure pcent is in [0, 100]
+  pcent = qBound(0.0, pcent, 100.0);
+
+  // Drive our image widget (0.0–1.0)
+  m_progressWidget->setProgress(pcent / 100.0);
+}
+
+void MainWindow::updateCurrentTimeLabel(double t) {
+  QString txt = QString("%1").arg(t, m_currentLabelWidth, 'e',
                                   m_currentLabelPrecision, QChar(' '));
-  m_currentLabel = new QLabel(txt, timeline);
-  m_currentLabel->setStyleSheet(
-      "QLabel { color: #E50000; font-weight: bold; }");
-  tlLayout->addWidget(m_currentLabel);
+  m_currentLabel->setText(txt);
+}
 
-  // Put it in the status bar
-  statusBar()->addPermanentWidget(timeline, /*stretch=*/1);
+void MainWindow::createVisualisations() {
+  m_vizTab = new VizTabWidget(this);
+  m_bottomWidget->addWidget(m_vizTab);
+  QString imagesDir = m_simCtrl->simulationDirectory() + "/images";
+  m_vizTab->watchImageDirectory(imagesDir);
+}
 
-  // Whenever we open or change simulation, re-read start/end
-  connect(m_simCtrl, &SimulationController::simulationDirectoryChanged, this,
-          [this](const QString &) {
-            m_simCtrl->readTimeIntegrationParams();
-            m_progressBar->setValue(0.0);
-          });
+void MainWindow::createDataWatcher() {
+  // 1) Instantiate (no parent—lives in its own thread)
+  m_dataWatcher =
+      new DataWatcher(m_simCtrl->simulationDirectory() + "/gui_data.txt",
+                      /*parent=*/nullptr);
 
-  // Now drive the bar from the LogTab’s current‐time signal:
-  connect(m_logTab, &LogTabWidget::currentTimeChanged, this, [this](double t) {
-    // Update the current time label
-    QString txt = QString("%1").arg(t, m_currentLabelWidth, 'e',
-                                    m_currentLabelPrecision, QChar(' '));
-    m_currentLabel->setText(txt);
+  // 2) Move it to its own thread
+  m_dwThread = new QThread(this);
+  m_dataWatcher->moveToThread(m_dwThread);
 
-    // get start/end from the controller
-    double t0 = m_simCtrl->startTime();
-    double t1 = m_simCtrl->endTime();
-    double frac = (t - t0) / (t1 - t0);
-    int pct = qBound(0, int(frac * 100.0 + 0.5), 100);
-    m_progressAnim->stop();
-    m_progressAnim->setStartValue(m_progressBar->value());
-    m_progressAnim->setEndValue(pct);
-    m_progressAnim->start();
-  });
+  // 3) Kick off its initial load when the thread starts
+  connect(m_dwThread, &QThread::started, m_dataWatcher,
+          &DataWatcher::updateData);
+
+  // 4) Clean up watcher when thread finishes
+  connect(m_dwThread, &QThread::finished, m_dataWatcher, &QObject::deleteLater);
+
+  m_dwThread->start();
+}
+
+/**
+ * @brief Create counters and link them into the top stacked widget.
+ */
+void MainWindow::createCounters() {
+  // Create the step counter widget
+  m_stepCounter = new StepCounterWidget(tr("SIMULATION STEPS"), this, 4);
+  m_topStack->addWidget(m_stepCounter);
+
+  // Create the current time counter
+  m_wallClockCounter = new StepCounterWidget(tr("RUNTIME (HRS)"), this, 4);
+  m_topStack->addWidget(m_wallClockCounter);
+
+  // Create the stellar mass formed counter
+  m_starsFormedCounter =
+      new StepCounterWidget(tr("SOLAR MASSES \nFORMED"), this, 4);
+  m_topStack->addWidget(m_starsFormedCounter);
+
+  // Create the black holes formed counter
+  m_blackHolesFormedCounter =
+      new StepCounterWidget(tr("BLACK HOLES \nFORMED"), this, 4);
+  m_topStack->addWidget(m_blackHolesFormedCounter);
+
+  // Create the updated particle counter
+  m_ParticleUpdateCounter =
+      new StepCounterWidget(tr("PARTICLES \nUPDATED"), this, 6);
+  m_topStack->addWidget(m_ParticleUpdateCounter);
+
+  // Create the redshift counter
+  m_redshiftCounter = new StepCounterWidget(tr("REDSHIFT"), this, 4);
+  m_topStack->addWidget(m_redshiftCounter);
+
+  // Create the live percent counter
+  m_livePercentCounter =
+      new StepCounterWidget(tr("LIVE PERCENTAGE \n RUN"), this, 2);
+  m_topStack->addWidget(m_livePercentCounter);
+}
+
+void MainWindow::createSerialHandler(const QString &portPath) {
+  // Instantiate and let MainWindow own it
+  m_serialHandler =
+      new SerialHandler(portPath, /*baud=*/115200, /*parent=*/nullptr);
+
+  // Attach the serial handler to the other classes that need it
+  m_logTab->setSerialHandler(m_serialHandler);
+  m_vizTab->setSerialHandler(m_serialHandler);
+}
+
+void MainWindow::rotateTopPage() {
+  if (!m_topStack)
+    return;
+  int count = m_topStack->count();
+  if (count < 2)
+    return;
+
+  int next = (m_topStack->currentIndex() + 1) % count;
+  m_topStack->setCurrentIndex(next);
+
+  // Reset the rotate timer
+  if (m_topRotateTimer) {
+    m_topRotateTimer->start();
+  }
+}
+
+void MainWindow::updateStepCounter(long long step) {
+  m_stepCounter->setStep(step);
+}
+
+void MainWindow::updateWallClockCounter(double t) {
+  // Convert seconds to hours
+  int hours = t / 1000.0 / 60 / 60;
+  m_wallClockCounter->setStep(hours);
+}
+
+void MainWindow::updateStarsFormedCounter(double mass) {
+  // Convert mass to integer count (assuming 1 solar mass per star)
+  long long count = static_cast<long long>(mass * 1e10);
+  m_starsFormedCounter->setStep(count);
+}
+
+void MainWindow::updateBlackHolesFormedCounter(long long count) {
+  m_blackHolesFormedCounter->setStep(count);
+}
+
+void MainWindow::updateParticleUpdateCounter(long long count) {
+  m_ParticleUpdateCounter->setStep(count);
+}
+
+void MainWindow::updateRedshiftCounter(double redshift) {
+  // Convert redshift to an interger
+  int redshiftInt = static_cast<int>(redshift);
+  m_redshiftCounter->setStep(redshiftInt);
+}
+
+void MainWindow::updatePercentRunCounter(double percent) {
+  // Ensure percent is in [0, 100]
+  percent = qBound(0.0, percent, 100.0);
+
+  // Convert percent to an integer
+  int percentInt = static_cast<int>(percent);
+
+  // Update the counter
+  m_livePercentCounter->setStep(percentInt);
 }
 
 void MainWindow::changeLogFontSize() {
@@ -305,7 +512,46 @@ void MainWindow::changeLogFontSize() {
 }
 
 void MainWindow::switchToTab(int index) {
-  if (index >= 0 && index < m_tabs->count()) {
-    m_tabs->setCurrentIndex(index);
+  if (index >= 0 && index < m_bottomWidget->count()) {
+    m_bottomWidget->setCurrentIndex(index);
+  }
+}
+
+void MainWindow::buttonUpdateUI(int id) {
+
+  // Perform the right operation based on the button ID
+  switch (id) {
+  case 1:
+    // Dark Matter Visualisation
+    m_vizTab->setDatasetKey("dark_matter");
+    m_bottomWidget->setCurrentIndex(2);
+    break;
+  case 5:
+    // Gas Visualisation
+    m_vizTab->setDatasetKey("gas");
+    m_bottomWidget->setCurrentIndex(2);
+    break;
+  case 6:
+    // Stars Visualisation
+    m_vizTab->setDatasetKey("stars");
+    m_bottomWidget->setCurrentIndex(2);
+    break;
+  case 2:
+    // Gas Temperature Visualisation
+    m_vizTab->setDatasetKey("gas_temperature");
+    m_bottomWidget->setCurrentIndex(2);
+    break;
+  case 3:
+    m_bottomWidget->setCurrentIndex(1); // Log widget
+    break;
+  case 4:
+    // Next on top widget
+    rotateTopPage();
+    // Also bring up the Home tab
+    m_bottomWidget->setCurrentIndex(0);
+    break;
+  default:
+    qDebug() << "Unknown button ID:" << id;
+    break;
   }
 }
